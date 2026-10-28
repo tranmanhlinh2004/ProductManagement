@@ -1,0 +1,11 @@
+Flask
+Flask-CORS
+python-dotenv
+pyodbc
+bcrypt
+opencv-python
+numpy
+pyzbar
+python-barcode
+qrcode
+pillow
