@@ -1,360 +1,59 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sản Phẩm & SKU (F04) | Smart Warehouse</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sản phẩm | Product Barcode Demo</title>
   <link rel="stylesheet" href="../assets/css/style.css">
-  <link rel="stylesheet" href="../assets/css/pages/products.css">
+  <script src="../assets/js/script.js" defer></script>
 </head>
 <body data-page="products">
-  <div class="app-container">
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="brand-wrap">
-          <div class="brand-icon">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7"></rect>
-              <rect x="14" y="3" width="7" height="7"></rect>
-              <rect x="3" y="14" width="7" height="7"></rect>
-              <path d="M14 14h3v3h-3z"></path>
-              <path d="M17 17h4v4h-4z"></path>
-              <path d="M14 20h3v1h-3z"></path>
-              <path d="M20 14h1v3h-1z"></path>
-            </svg>
-          </div>
-          <div class="brand-info">
-            <div class="brand-title">SMART WAREHOUSE</div>
-            <div class="brand-sub">Quản Lý Mã Vạch 2.1</div>
-          </div>
-        </div>
-        <button class="sidebar-collapse-btn" id="btn-sidebar-collapse" title="Thu gọn / Mở rộng menu (Alt + S)">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-      </div>
-
-      <nav class="sidebar-menu">
-        <div class="menu-group-label"><span>Tổng Quan</span></div>
-        <a class="nav-link" href="index.html" data-page="dashboard" title="Dashboard Tổng Quan (F02)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-          </svg>
-          <span class="nav-text">Dashboard (F02)</span>
-        </a>
-
-        <div class="menu-group-label"><span>Dữ Liệu Sản Phẩm</span></div>
-        <a class="nav-link active" href="products.html" data-page="products" title="Sản Phẩm & SKU (F04)" aria-current="page">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-          </svg>
-          <span class="nav-text">Sản Phẩm & SKU (F04)</span>
-        </a>
-
-        <a class="nav-link" href="categories.html" data-page="categories" title="Danh Mục (F03)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-          <span class="nav-text">Danh Mục (F03)</span>
-        </a>
-
-        <a class="nav-link" href="barcode.html" data-page="barcode" title="Tạo Barcode/QR (F05)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 5v14"></path>
-            <path d="M8 5v14"></path>
-            <path d="M12 5v14"></path>
-            <path d="M17 5v14"></path>
-            <path d="M21 5v14"></path>
-          </svg>
-          <span class="nav-text">Tạo Barcode/QR (F05)</span>
-        </a>
-
-        <div class="menu-group-label"><span>Thao Tác Kho & Nhận Diện</span></div>
-        <a class="nav-link" href="scanner.html" data-page="scanner" title="Quét Mã & Tra Cứu (F06)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
-            <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
-            <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
-            <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
-            <line x1="7" y1="12" x2="17" y2="12"></line>
-          </svg>
-          <span class="nav-text">Quét Mã & Tra Cứu (F06)</span>
-        </a>
-
-        <a class="nav-link" href="stock-in.html" data-page="stock-in" title="Nhập Kho (F07)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14"></path>
-            <path d="M19 12l-7 7-7-7"></path>
-          </svg>
-          <span class="nav-text">Nhập Kho (F07)</span>
-        </a>
-
-        <a class="nav-link" href="stock-out.html" data-page="stock-out" title="Xuất Kho (F08)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 19V5"></path>
-            <path d="M5 12l7-7 7 7"></path>
-          </svg>
-          <span class="nav-text">Xuất Kho (F08)</span>
-        </a>
-
-        <a class="nav-link" href="stocktake.html" data-page="stocktake" title="Tồn Kho & Kiểm Kê (F09)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 11l3 3L22 4"></path>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-          </svg>
-          <span class="nav-text">Tồn Kho & Kiểm Kê (F09)</span>
-        </a>
-
-        <div class="menu-group-label"><span>Báo Cáo & Hệ Thống</span></div>
-        <a class="nav-link" href="reports.html" data-page="reports" title="Thống Kê Báo Cáo (F10)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="20" x2="18" y2="10"></line>
-            <line x1="12" y1="20" x2="12" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="14"></line>
-          </svg>
-          <span class="nav-text">Thống Kê Báo Cáo (F10)</span>
-        </a>
-
-        <a class="nav-link" href="activity-logs.html" data-page="activity-logs" title="Lịch Sử Hoạt Động (F11)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          <span class="nav-text">Lịch Sử Hoạt Động (F11)</span>
-        </a>
-
-        <a class="nav-link" href="users.html" data-page="users" title="Phân Quyền User (F01)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          <span class="nav-text">Phân Quyền User (F01)</span>
-        </a>
-
-        <a class="nav-link" href="alerts.html" data-page="alerts" title="Cảnh Báo Tồn (F12)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
-          <span class="nav-text">Cảnh Báo Tồn (F12)</span>
-          <span class="nav-badge" id="sidebar-alert-badge">0</span>
-        </a>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-card">
-          <div class="user-avatar" id="current-user-avatar" title="Tài khoản hiện tại">AD</div>
-          <div class="user-info">
-            <div class="user-name" id="current-user-name">Quản Trị Viên</div>
-            <span class="user-role-badge role-admin" id="current-user-role-badge">ADMIN</span>
-          </div>
-          <button class="role-switch-btn" id="btn-toggle-role" title="Chuyển vai trò thử nghiệm Admin / Staff">Đổi quyền</button>
-        </div>
-      </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">PRODUCT BARCODE</div>
+      <p class="brand-sub">Demo nhận diện sản phẩm</p>
+      <nav id="primary-nav" aria-label="Chức năng chính"></nav>
+      <p class="demo-note">Thêm sản phẩm → tạo tem → quét mã để xem thông tin.</p>
     </aside>
-
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-    <div class="main-wrapper">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button class="topbar-sidebar-toggle" id="btn-topbar-sidebar-toggle" title="Thu gọn / Mở rộng menu">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-          <div class="page-breadcrumb">
-            <span class="breadcrumb-prefix">Hệ Thống Kho /</span>
-            <span class="current" id="topbar-active-title">Sản Phẩm & SKU (F04)</span>
+    <main>
+      <h1>Sản phẩm</h1>
+      <p class="intro">Quản lý thông tin dùng để tạo mã và tra cứu khi quét.</p>
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+      <section class="card" aria-labelledby="form-title">
+        <h2 id="form-title">Thêm sản phẩm</h2>
+        <form id="product-form">
+          <input disabled type="hidden" id="product-id">
+          <div class="form-grid">
+            <label>SKU <input disabled id="prod-sku" required maxlength="50" pattern="[!-~]+" placeholder="VD: SP001" title="Ký tự ASCII, không dấu và không khoảng trắng"></label>
+            <label>Tên sản phẩm <input disabled id="prod-name" required maxlength="200"></label>
+            <label>Danh mục <input disabled id="prod-category" required maxlength="100" list="category-list" value="Demo"></label>
+            <label>Đơn vị <input disabled id="prod-unit" required maxlength="30" value="Cái"></label>
+            <label>Giá bán (VND) <input disabled id="prod-sale_price" type="number" min="0" max="9999999999999999.99" step="0.01" required value="0"></label>
           </div>
-          <div class="quick-search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" id="global-quick-search" placeholder="Tra nhanh SKU hoặc mã Barcode...">
-          </div>
-        </div>
-
-        <div class="topbar-right">
-          <div class="system-status-pill">
-            <div class="status-pulse"></div>
-            <span>OpenCV • CSDL Sẵn Sàng</span>
-          </div>
-
-          <div style="position: relative;">
-            <button class="icon-btn" id="btn-topbar-bell">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
-              <div class="badge-dot" id="header-alert-dot"></div>
-            </button>
-            <div class="notification-dropdown" id="notification-dropdown">
-              <div class="notif-header">
-                <span>Cảnh Báo & Thông Báo</span>
-                <span class="badge badge-danger" id="notif-count-badge">0 mục</span>
-              </div>
-              <div class="notif-list" id="notif-dropdown-list"></div>
-              <div style="padding: 10px; text-align: center; border-top: 1px solid var(--border-color);">
-                <button class="btn btn-secondary btn-sm" id="btn-view-all-alerts" style="width: 100%;">Xem tất cả cảnh báo</button>
-              </div>
-            </div>
-          </div>
-
-          <button class="btn btn-secondary btn-sm" id="btn-quick-scan-action">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
-              <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
-              <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
-              <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
-            </svg>
-            Quét Nhanh (F06)
-          </button>
-        </div>
-      </header>
-
-      <main class="content-body">
-        <section class="page-content" id="products">
-          <div class="page-header">
-            <div class="page-title-wrap">
-              <h1>Quản Lý Thông Tin Sản Phẩm & SKU</h1>
-              <p>Đăng ký hồ sơ sản phẩm, gán mã nhận diện duy nhất, quy định ngưỡng an toàn</p>
-            </div>
-            <div class="page-actions">
-              <button class="btn btn-primary" id="btn-open-create-product">+ Thêm Sản Phẩm Mới</button>
-            </div>
-          </div>
-
-          <div class="filter-bar">
-            <input type="text" class="filter-input" id="filter-prod-search" placeholder="Tìm theo SKU, tên, barcode...">
-            <select class="filter-input" id="filter-prod-category">
-              <option value="">Tất cả danh mục</option>
-            </select>
-            <select class="filter-input" id="filter-prod-status">
-              <option value="">Tất cả trạng thái</option>
-              <option value="active">Đang hoạt động</option>
-              <option value="low">Sắp hết hàng</option>
-              <option value="out">Hết hàng (0)</option>
-              <option value="inactive">Ngừng sử dụng</option>
-            </select>
-          </div>
-
-          <div class="card">
-            <div class="table-responsive">
-              <table class="custom-table table-products">
-                <thead>
-                  <tr>
-                    <th>Ảnh</th>
-                    <th>Mã SKU</th>
-                    <th>Tên Sản Phẩm</th>
-                    <th>Danh Mục</th>
-                    <th>Mã Vạch / Barcode</th>
-                    <th>ĐVT</th>
-                    <th>Giá Nhập (VND)</th>
-                    <th>Giá Bán (VND)</th>
-                    <th>Tồn Kho</th>
-                    <th>Ngưỡng</th>
-                    <th>Trạng Thái</th>
-                    <th>Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody id="products-table-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="modal-product">
-    <div class="modal-box modal-lg">
-      <div class="modal-header">
-        <div class="modal-title" id="modal-product-title">Thêm Sản Phẩm Mới</div>
-        <button class="modal-close-btn" data-close-modal="modal-product">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-product">
-          <input type="hidden" id="prod-form-id">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Mã SKU <span class="req">*</span></label>
-              <input type="text" class="form-control" id="prod-sku" placeholder="VD: SP000128" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tên Sản Phẩm <span class="req">*</span></label>
-              <input type="text" class="form-control" id="prod-name" placeholder="Tên sản phẩm..." required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Danh Mục <span class="req">*</span></label>
-              <select class="form-control" id="prod-category" required></select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Đơn Vị Tính <span class="req">*</span></label>
-              <input type="text" class="form-control" id="prod-unit" placeholder="Cái, Chiếc, Bộ..." value="Cái" required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Giá Nhập (VND) <span class="req">*</span></label>
-              <input type="number" min="0" class="form-control" id="prod-import-price" placeholder="0" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Giá Bán (VND) <span class="req">*</span></label>
-              <input type="number" min="0" class="form-control" id="prod-sale-price" placeholder="0" required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Ngưỡng Tồn Tối Thiểu <span class="req">*</span></label>
-              <input type="number" min="0" class="form-control" id="prod-min-stock" value="5" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Mã Nhận Diện (Barcode/QR)</label>
-              <input type="text" class="form-control" id="prod-barcode-val" placeholder="Để trống hệ thống sẽ dùng SKU">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Mô Tả Sản Phẩm</label>
-            <textarea class="form-control" id="prod-desc" rows="3" placeholder="Mô tả kỹ thuật, thông số..."></textarea>
+          <datalist id="category-list"></datalist>
+          <p class="hint" style="margin-top:16px">Khung nhập thông tin sản phẩm. Chưa xử lý lưu hoặc sửa dữ liệu.</p>
+          <div class="actions">
+            <button disabled id="btn-submit-product" type="submit">Lưu sản phẩm</button>
+            <button disabled id="btn-cancel-edit" type="button" class="secondary" hidden>Hủy sửa</button>
           </div>
         </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-close-modal="modal-product">Hủy Bỏ</button>
-        <button class="btn btn-primary" id="btn-submit-product">Lưu Hồ Sơ Sản Phẩm</button>
-      </div>
-    </div>
+      </section>
+      <section class="card" aria-labelledby="list-title">
+        <h2 id="list-title">Danh sách sản phẩm</h2>
+        <div class="toolbar">
+          <input disabled id="product-search" type="search" placeholder="Tìm tên, SKU hoặc mã…" aria-label="Tìm sản phẩm">
+          <span id="product-count" class="muted"></span>
+          <button disabled id="btn-refresh" type="button" class="secondary">Tải lại</button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead><tr><th>SKU</th><th>Tên sản phẩm</th><th>Danh mục</th><th>Đơn vị</th><th>Giá bán</th><th>Nội dung mã</th><th>Thao tác</th></tr></thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
+        </div>
+        <p id="products-empty" class="empty">Chưa kết nối dữ liệu sản phẩm.</p>
+      </section>
+    </main>
   </div>
-
-  <div class="printable-area" id="print-container"></div>
-  <div class="toast-container" id="toast-container"></div>
-
-  <script src="../assets/js/script.js"></script>
 </body>
 </html>
