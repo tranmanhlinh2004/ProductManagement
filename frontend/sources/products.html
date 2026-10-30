@@ -6,6 +6,7 @@
   <title>Sản phẩm | Product Barcode Demo</title>
   <link rel="stylesheet" href="../assets/css/style.css">
   <script src="../assets/js/script.js" defer></script>
+  <script src="../assets/js/products.js" defer></script>
 </head>
 <body data-page="products">
   <div class="app">
@@ -22,28 +23,28 @@
       <section class="card" aria-labelledby="form-title">
         <h2 id="form-title">Thêm sản phẩm</h2>
         <form id="product-form">
-          <input disabled type="hidden" id="product-id">
+          <input type="hidden" id="product-id">
           <div class="form-grid">
-            <label>SKU <input disabled id="prod-sku" required maxlength="50" pattern="[!-~]+" placeholder="VD: SP001" title="Ký tự ASCII, không dấu và không khoảng trắng"></label>
-            <label>Tên sản phẩm <input disabled id="prod-name" required maxlength="200"></label>
-            <label>Danh mục <input disabled id="prod-category" required maxlength="100" list="category-list" value="Demo"></label>
-            <label>Đơn vị <input disabled id="prod-unit" required maxlength="30" value="Cái"></label>
-            <label>Giá bán (VND) <input disabled id="prod-sale_price" type="number" min="0" max="9999999999999999.99" step="0.01" required value="0"></label>
+            <label>SKU <input id="prod-sku" required maxlength="50" pattern="[!-~]+" placeholder="VD: SP001" title="Ký tự ASCII, không dấu và không khoảng trắng"></label>
+            <label>Tên sản phẩm <input id="prod-name" required maxlength="200"></label>
+            <label>Danh mục <input id="prod-category" required maxlength="100" list="category-list" value="Demo"></label>
+            <label>Đơn vị <input id="prod-unit" required maxlength="30" value="Cái"></label>
+            <label>Giá bán (VND) <input id="prod-sale_price" type="number" min="0" max="9999999999999999.99" step="0.01" required value="0"></label>
           </div>
           <datalist id="category-list"></datalist>
-          <p class="hint" style="margin-top:16px">Khung nhập thông tin sản phẩm. Chưa xử lý lưu hoặc sửa dữ liệu.</p>
+          <p class="hint" style="margin-top:16px">Danh mục lấy từ bảng categories trong database.</p>
           <div class="actions">
-            <button disabled id="btn-submit-product" type="submit">Lưu sản phẩm</button>
-            <button disabled id="btn-cancel-edit" type="button" class="secondary" hidden>Hủy sửa</button>
+            <button id="btn-submit-product" type="submit">Lưu sản phẩm</button>
+            <button id="btn-cancel-edit" type="button" class="secondary" hidden>Hủy sửa</button>
           </div>
         </form>
       </section>
       <section class="card" aria-labelledby="list-title">
         <h2 id="list-title">Danh sách sản phẩm</h2>
         <div class="toolbar">
-          <input disabled id="product-search" type="search" placeholder="Tìm tên, SKU hoặc mã…" aria-label="Tìm sản phẩm">
+          <input id="product-search" type="search" placeholder="Tìm tên, SKU hoặc mã…" aria-label="Tìm sản phẩm">
           <span id="product-count" class="muted"></span>
-          <button disabled id="btn-refresh" type="button" class="secondary">Tải lại</button>
+          <button id="btn-refresh" type="button" class="secondary">Tải lại</button>
         </div>
         <div class="table-responsive">
           <table>
@@ -51,7 +52,7 @@
             <tbody id="products-tbody"></tbody>
           </table>
         </div>
-        <p id="products-empty" class="empty">Chưa kết nối dữ liệu sản phẩm.</p>
+        <p id="products-empty" class="empty">Đang tải dữ liệu sản phẩm…</p>
       </section>
     </main>
   </div>
