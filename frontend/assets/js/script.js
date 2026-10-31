@@ -1,4 +1,4 @@
-// Chỉ điều hướng giữa các trang khung; chưa có xử lý nghiệp vụ hoặc gọi API.
+// Điều hướng dùng chung giữa các trang.
 document.addEventListener('DOMContentLoaded', () => {
   const nav = document.getElementById('primary-nav');
   for (const [page, label] of [
@@ -12,5 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.body.dataset.page === page) link.setAttribute('aria-current', 'page');
     nav.append(link);
   }
-  document.getElementById('message').textContent = 'Giao diện khung — chức năng chưa được triển khai.';
+  if (document.body.dataset.page !== 'products') {
+    document.getElementById('message').textContent = 'Giao diện khung — chức năng chưa được triển khai.';
+  }
 });

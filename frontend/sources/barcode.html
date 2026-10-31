@@ -25,8 +25,8 @@
           <form id="barcode-form">
             <div class="stack">
               <label>Sản phẩm <select disabled id="barcode-select-product" required><option value="">Chưa kết nối dữ liệu sản phẩm</option></select></label>
-              <label>Loại mã <select disabled id="barcode-type"><option value="CODE128">Barcode (Code128)</option><option value="QR">QR Code</option></select></label>
-              <label>Nội dung mã <input disabled id="barcode-payload" readonly></label>
+              <label>Loại mã <select disabled id="barcode-type"><option value="barcode">Barcode (Code128)</option><option value="QR-code">QR Code</option></select></label>
+              <label>Serial (8 chữ số) <input disabled id="barcode-payload" readonly></label>
             </div>
             <p class="hint" style="margin-top:16px">Khung tạo mã cho sản phẩm. Chưa triển khai sinh mã, lưu dữ liệu, tải ảnh hoặc in tem.</p>
             <div class="actions"><button id="btn-save-barcode" type="submit" disabled>Tạo và lưu mã</button></div>
