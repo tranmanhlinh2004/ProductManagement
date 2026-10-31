@@ -19,6 +19,9 @@ def default_config():
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_default_database_name(self):
+        self.assertEqual(default_config()["DB_NAME"], "QLSP")
+
     def test_certificate_verification_is_enabled_by_default(self):
         config = default_config()
         self.assertTrue(config["DB_ENCRYPT"])

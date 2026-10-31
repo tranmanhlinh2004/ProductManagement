@@ -31,7 +31,7 @@ def load_config():
     return {
         "DB_DRIVER": os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server"),
         "DB_SERVER": os.getenv("DB_SERVER", "localhost"),
-        "DB_NAME": os.getenv("DB_NAME", "QLSP_Barcode"),
+        "DB_NAME": os.getenv("DB_NAME", "QLSP"),
         "DB_TRUSTED_CONNECTION": _boolean("DB_TRUSTED_CONNECTION", "yes"),
         "DB_USER": os.getenv("DB_USER", ""),
         "DB_PASSWORD": os.getenv("DB_PASSWORD", ""),
