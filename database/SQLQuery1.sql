@@ -1,6 +1,8 @@
-CREATE DATABASE QLSP_Barcode;
+CREATE DATABASE QLSP;
+GO
 
-USE QLSP_Barcode;
+USE QLSP;
+GO
 
 
 CREATE TABLE users (
@@ -33,8 +35,10 @@ CREATE TABLE products (
     unit NVARCHAR(30) NOT NULL DEFAULT N'Cái',
     import_price DECIMAL(18,2) NOT NULL DEFAULT 0,
     sale_price DECIMAL(18,2) NOT NULL DEFAULT 0,
-    barcode_value VARCHAR(100),
-    barcode_type VARCHAR(10) NOT NULL DEFAULT 'QR',
+    product_serial VARCHAR(8) NOT NULL
+        CONSTRAINT DF_products_product_serial DEFAULT
+        (RIGHT('00000000' + CONVERT(VARCHAR(8), CONVERT(BIGINT, CRYPT_GEN_RANDOM(4)) % 100000000), 8)),
+    [type] VARCHAR(10) NOT NULL CONSTRAINT DF_products_type DEFAULT 'QR-code',
     min_stock INT NOT NULL DEFAULT 0,
     is_active BIT NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT GETDATE(),
@@ -45,7 +49,9 @@ CREATE TABLE products (
     CHECK (import_price >= 0),
     CHECK (sale_price >= 0),
     CHECK (min_stock >= 0),
-    CHECK (barcode_type IN ('QR', 'CODE128', 'EAN13', 'EAN8', 'UPC_A'))
+    CONSTRAINT CK_products_type CHECK (DATALENGTH([type]) = 7 AND [type] COLLATE Latin1_General_100_BIN2 IN ('barcode', 'QR-code')),
+    CONSTRAINT CK_products_product_serial CHECK
+        (DATALENGTH(product_serial) = 8 AND product_serial COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^0-9]%')
 );
 GO
 
@@ -145,9 +151,8 @@ CREATE TABLE activity_logs (
 );
 GO
 
-CREATE UNIQUE INDEX IX_products_barcode
-ON products(barcode_value)
-WHERE barcode_value IS NOT NULL;
+CREATE UNIQUE INDEX IX_products_product_serial
+ON products(product_serial);
 GO
 
 CREATE INDEX IX_products_category

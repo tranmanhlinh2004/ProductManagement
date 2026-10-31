@@ -1,11 +1,11 @@
--- DU LIEU MAU CHO QLSP_Barcode - Microsoft SQL Server
+-- DU LIEU MAU CHO QLSP - Microsoft SQL Server
 -- Chay sau khi da tao tat ca bang, foreign key va index.
 -- Script duoc thiet ke cho CSDL moi, cac bang chua co du lieu.
 -- Tai khoan demo (chi dung de kiem thu):
 --   admin / Admin@12345  (ADMIN)
 --   staff / Staff@12345  (STAFF)
 -- Password hashes dung BCrypt ($2b$, cost = 12). Ung dung phai xac thuc bang BCrypt.
-USE QLSP_Barcode;
+USE QLSP;
 GO
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -43,7 +43,8 @@ BEGIN TRY
         product_name NVARCHAR(200) NOT NULL,
         unit NVARCHAR(30) NOT NULL,
         import_price DECIMAL(18,2) NOT NULL,
-        sale_price DECIMAL(18,2) NOT NULL
+        sale_price DECIMAL(18,2) NOT NULL,
+        product_serial VARCHAR(8) NULL
     );
     INSERT INTO #Seed (seq, category_name, product_name, unit, import_price, sale_price)
     VALUES
@@ -105,14 +106,24 @@ BEGIN TRY
            1, DATEADD(DAY, -90, GETDATE())
     FROM #Seed;
 
-    -- 3) 50 products, SKU va barcode khong trung
+    -- Generate distinct eight-digit serials for both barcode and QR-code.
+    DECLARE @Serial VARCHAR(8), @Seq INT;
+    WHILE EXISTS (SELECT 1 FROM #Seed WHERE product_serial IS NULL)
+    BEGIN
+        SET @Seq = (SELECT MIN(seq) FROM #Seed WHERE product_serial IS NULL);
+        SET @Serial = RIGHT('00000000' + CONVERT(VARCHAR(8), CONVERT(BIGINT, CRYPT_GEN_RANDOM(4)) % 100000000), 8);
+        IF NOT EXISTS (SELECT 1 FROM #Seed WHERE product_serial = @Serial)
+            UPDATE #Seed SET product_serial = @Serial WHERE seq = @Seq;
+    END;
+
+    -- 3) 50 products, SKU va serial khong trung
     INSERT INTO dbo.products
       (sku, name, category_id, unit, import_price, sale_price,
-       barcode_value, barcode_type, min_stock, is_active, created_at)
+       product_serial, [type], min_stock, is_active, created_at)
     SELECT CONCAT('SP', RIGHT('0000' + CAST(s.seq AS VARCHAR(4)), 4)),
            s.product_name, c.id, s.unit, s.import_price, s.sale_price,
-           CONCAT('QLSP-', RIGHT('0000' + CAST(s.seq AS VARCHAR(4)), 4)),
-           CASE WHEN s.seq % 5 = 0 THEN 'QR' ELSE 'CODE128' END,
+           s.product_serial,
+           CASE WHEN s.seq % 5 = 0 THEN 'QR-code' ELSE 'barcode' END,
            10 + (s.seq % 8), 1, DATEADD(DAY, s.seq - 75, GETDATE())
     FROM #Seed AS s
     JOIN dbo.categories AS c ON c.name = s.category_name;
