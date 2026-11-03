@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const nav = document.getElementById('primary-nav');
   for (const [page, label] of [
     ['products', 'Sản phẩm'],
-    ['barcode', 'Tạo Barcode / QR'],
     ['scanner', 'Quét mã bằng webcam']
   ]) {
     const link = document.createElement('a');

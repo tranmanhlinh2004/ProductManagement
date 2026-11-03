@@ -2,7 +2,7 @@
 
 Ứng dụng dùng Flask + SQL Server để hiển thị thông tin sản phẩm phục vụ tạo và tra cứu mã.
 
-Trang sản phẩm đã lấy dữ liệu trực tiếp qua API, không đọc các file JSON trong frontend. Các chức năng thêm/sửa/xóa sản phẩm, sinh mã và quét webcam chưa được triển khai.
+Trang sản phẩm lấy dữ liệu trực tiếp qua API, hiển thị SKU, tên sản phẩm, danh mục, số lượng trong kho và serial. Danh sách được phân trang tối đa 10 sản phẩm/trang. Nút **Thêm sản phẩm mới** mở hộp thoại để lưu sản phẩm và tồn kho ban đầu vào database; serial 8 chữ số được tạo tự động. Menu tạo Barcode/QR đã được bỏ; sửa/xóa sản phẩm và quét webcam chưa được triển khai.
 
 ## Chạy ứng dụng
 
@@ -26,7 +26,7 @@ Kiểm tra kết nối và khởi động, vẫn trong thư mục `backend`:
 .\.venv\Scripts\python.exe run.py
 ```
 
-Giữ backend chạy tại **http://127.0.0.1:8080** để cung cấp API đọc database.
+Giữ backend chạy tại **http://127.0.0.1:8080** để cung cấp API sản phẩm.
 
 ### Tự chạy backend khi mở VS Code
 
@@ -50,11 +50,14 @@ Bạn cũng có thể mở **http://127.0.0.1:8080/** để xem giao diện qua 
 ```text
 Live Server → GET http://127.0.0.1:8080/api/products → Flask → SQL Server
             → GET http://127.0.0.1:8080/api/categories → Flask → SQL Server
+            → POST http://127.0.0.1:8080/api/products → Flask → SQL Server
 ```
 
-- Sản phẩm đang hoạt động được lấy từ bảng `products`, nối `categories` để lấy tên danh mục, sắp xếp ID giảm dần.
+- Sản phẩm đang hoạt động được lấy từ bảng `products`, nối `categories` để lấy tên danh mục và `inventory` để lấy số lượng trong kho, sắp xếp ID giảm dần. Sản phẩm chưa có bản ghi kho hiển thị số lượng 0.
 - Danh mục đang hoạt động được lấy từ bảng `categories`.
-- Tìm kiếm lọc danh sách đã tải theo tên, SKU hoặc nội dung mã.
+- Tìm kiếm lọc danh sách đã tải theo tên, SKU hoặc serial và trở về trang đầu tiên; mỗi trang hiển thị tối đa 10 sản phẩm.
+- **Thêm sản phẩm mới** mở hộp thoại nhập SKU, tên, danh mục và số lượng trong kho. Danh mục phải đang hoạt động. Khi lưu thành công, sản phẩm xuất hiện ở đầu danh sách cùng serial tự động tạo. Khi trùng SKU hoặc lưu thất bại, hộp thoại giữ nguyên dữ liệu để sửa.
+- Cột **Thao tác** có nút **Xem / lưu mã** cho từng sản phẩm. Hộp thoại hiển thị tên, SKU, serial và cho phép chọn **Mã QR** hoặc **Mã vạch (Code128)**, xem trước và **Lưu PNG**. Backend lưu QR vào `img/QR`, mã vạch vào `img/Barcode` trong thư mục gốc `ProductManagement`; thông báo hiển thị đường dẫn sau khi lưu thành công. Tên ảnh là `product-{id}-{serial}-qr.png` hoặc `product-{id}-{serial}-barcode.png`; lưu lại cùng sản phẩm/loại mã cập nhật cùng file. Cả hai loại mã đều chứa đúng serial 8 chữ số của sản phẩm, giữ nguyên số 0 đầu chuỗi. Mã cũng có sẵn cho sản phẩm vừa thêm.
 - “Tải lại” gửi yêu cầu API mới để lấy dữ liệu hiện tại từ database.
 - Khi không kết nối được database, giao diện hiển thị lỗi và cho phép thử lại.
 
@@ -68,7 +71,7 @@ Từ thư mục gốc:
 Push-Location backend
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 Pop-Location
-node --test frontend/tests/products.test.cjs
+node --test frontend/tests/*.test.cjs
 ```
 
 Kiểm thử tự động dùng kết nối giả lập, không sửa dữ liệu SQL Server.

@@ -36,6 +36,9 @@ class ProductSchemaTests(unittest.TestCase):
         # Names come exclusively from the random per-test identifier above.
         for name in (self.database, self.database + "_Barcode"):
             if self.cursor.execute("SELECT DB_ID(?)", name).fetchone()[0] is not None:
+                # Flask closes pyodbc connections into its pool; evict those idle
+                # sessions only from this test's disposable database before DROP.
+                self.cursor.execute(f"ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
                 self.cursor.execute(f"DROP DATABASE [{name}]")
         self.cursor.close()
         self.connection.close()
@@ -92,6 +95,36 @@ class ProductSchemaTests(unittest.TestCase):
                 "INSERT INTO dbo.products (sku, name, category_id, product_serial) VALUES ('DUP', N'Test', ?, ?)",
                 category, serial,
             )
+
+    def test_product_api_creates_stock_and_handles_duplicate_sku(self):
+        self.run_script("SQLQuery1.sql")
+        category = self.cursor.execute(
+            "INSERT INTO dbo.categories (name) OUTPUT INSERTED.id VALUES (N'Test category')"
+        ).fetchone()[0]
+        app = create_app({"TESTING": True, "DB_NAME": self.database})
+        with app.test_client() as client:
+            payload = {"sku": "API-TEST", "name": "Sản phẩm mới", "category_id": category, "quantity": 7}
+            response = client.post("/api/products", json=payload)
+            self.assertEqual(response.status_code, 201, response.get_json())
+            product = response.get_json()
+            self.assertEqual(product["quantity"], 7)
+            self.assertRegex(product["product_serial"], r"^[0-9]{8}$")
+            self.assertEqual(product["name"], payload["name"])
+            self.assertEqual(client.get("/api/products").get_json(), [product])
+            self.assertEqual(client.post("/api/products", json=payload).status_code, 409)
+            payload.update(sku="BAD-CATEGORY", category_id=category + 1)
+            self.assertEqual(client.post("/api/products", json=payload).status_code, 400)
+            self.assertEqual(len(client.get("/api/products").get_json()), 1)
+        self.assertEqual(self.cursor.execute("SELECT COUNT(*) FROM dbo.inventory").fetchone()[0], 1)
+
+        # Existing products with no inventory row must still appear with zero stock.
+        self.cursor.execute(
+            "INSERT INTO dbo.products (sku, name, category_id) VALUES ('NO-STOCK', N'Test', ?)", category
+        )
+        with app.test_client() as client:
+            products = client.get("/api/products").get_json()
+            self.assertEqual(products[0]["sku"], "NO-STOCK")
+            self.assertEqual(products[0]["quantity"], 0)
 
     def test_legacy_migration_keeps_relations_and_is_repeatable(self):
         self.cursor.execute(f"CREATE DATABASE [{self.database}_Barcode]")

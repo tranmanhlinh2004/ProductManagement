@@ -9,6 +9,7 @@ from .config import load_config
 from .db import init_app as init_database
 from .errors import init_app as init_errors
 from .routes.products import products_api
+from .routes.barcodes import barcodes_api
 
 
 def create_app(test_config=None):
@@ -22,11 +23,13 @@ def create_app(test_config=None):
         static_url_path="",
     )
     app.config.from_mapping(load_config())
+    app.config["PRODUCT_IMAGE_DIR"] = backend_directory.parent / "img"
     if test_config is not None:
         app.config.from_mapping(test_config)
     init_database(app)
     init_errors(app)
     app.register_blueprint(products_api)
+    app.register_blueprint(barcodes_api)
 
     @app.get("/")
     def index():
