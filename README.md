@@ -4,6 +4,8 @@
 
 Trang sản phẩm lấy dữ liệu trực tiếp qua API, hiển thị SKU, tên sản phẩm, danh mục, số lượng trong kho và serial. Danh sách được phân trang tối đa 10 sản phẩm/trang. Nút **Thêm sản phẩm mới** mở hộp thoại để lưu sản phẩm và tồn kho ban đầu vào database; serial 8 chữ số được tạo tự động. Trang **Quét mã bằng webcam** tích hợp OpenCV và pyzbar để quét mã QR và mã vạch trực tiếp qua webcam hoặc máy quét USB để tra cứu thông tin sản phẩm và tồn kho tức thời.
 
+Giải thích từng bước tạo và lưu ảnh mã trong `barcode_service.py`: [Logic sinh ảnh QR-code và barcode](docs/GIAI_THICH_LOGIC_SINH_MA.md).
+
 ## Chạy ứng dụng
 
 Khi đã chuẩn bị đầy đủ môi trường, thư viện và database, xem [Hướng dẫn chạy backend](docs/HUONG_DAN_CHAY_DU_AN.md).
