@@ -57,6 +57,18 @@ def get_product_code_data(product_id):
         return dict(zip((column[0] for column in cursor.description), row))
 
 
+def find_by_code(code):
+    with closing(get_db().cursor()) as cursor:
+        cursor.execute(
+            PRODUCT_SELECT + " WHERE (p.product_serial = ? OR p.sku = ?) AND p.is_active = 1",
+            code, code,
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return dict(zip((column[0] for column in cursor.description), row))
+
+
 def create_product(sku, name, category_id, quantity):
     """Save product and initial stock atomically, retrying random serial collisions."""
     connection = get_db()

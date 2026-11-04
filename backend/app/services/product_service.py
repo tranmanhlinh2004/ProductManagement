@@ -37,3 +37,12 @@ def create_product(data):
 
 def list_categories():
     return product_repository.list_categories()
+
+
+def find_by_code(code):
+    if not isinstance(code, str) or not code.strip():
+        return None
+    product = product_repository.find_by_code(code.strip())
+    if product is None:
+        return None
+    return _serialize(product)

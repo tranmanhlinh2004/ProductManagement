@@ -116,7 +116,37 @@ Với đường dẫn dự án hiện tại, thư mục gốc lưu ảnh là `E:
 
 Thành công trả `200` với JSON, ví dụ `{"message": "Đã lưu ảnh mã sản phẩm.", "filename": "product-1-00123456-qr.png", "path": "img/QR/product-1-00123456-qr.png"}`. Lỗi ghi file trả `500` với thông báo trong `error`; loại mã không hợp lệ trả `400`, sản phẩm không tồn tại trả `404`. Có thể dùng `PRODUCT_IMAGE_DIR` trong cấu hình Flask để đổi thư mục gốc khi kiểm thử.
 
-Sửa/xóa sản phẩm và quét mã bằng webcam chưa được triển khai. Menu tạo mã riêng đã được bỏ; thao tác xem/lưu mã nằm tại từng dòng sản phẩm. Đường dẫn `barcode.html` cũ chuyển về danh sách sản phẩm.
+### POST /api/scanner/scan
+
+Nhận khung hình từ webcam (dạng multipart file hoặc JSON base64 `{"image": "data:image/jpeg;base64,..."}`), tiền xử lý bằng OpenCV (`cv2`) và giải mã Barcode (Code128)/QR-code bằng `pyzbar`. Nếu tìm thấy mã, hệ thống tự động tra cứu sản phẩm trong SQL Server và trả về:
+
+```json
+{
+  "found": true,
+  "matched": true,
+  "code": "58295698",
+  "code_type": "QR-code",
+  "product": {
+    "id": 50,
+    "sku": "SP0050",
+    "name": "Thức ăn mèo hạt túi 1kg",
+    "category": "Chăm sóc thú cưng",
+    "unit": "Túi",
+    "sale_price": "105000.00",
+    "quantity": 55,
+    "product_serial": "58295698",
+    "is_active": true
+  }
+}
+```
+
+Nếu không tìm thấy mã trong khung hình, trả `found: false` với mã HTTP `200` để luồng video tiếp tục quét mượt mà. Nếu mã hợp lệ nhưng không có trong database, trả mã HTTP `404`.
+
+### POST /api/scanner/lookup
+
+Nhận JSON `{"code": "<sku hoặc serial>"}` cho máy quét mã vạch USB hoặc ô tra cứu thủ công. Trả về thông tin sản phẩm (HTTP 200) hoặc báo lỗi nếu không tìm thấy (HTTP 404).
+
+Sửa/xóa sản phẩm chưa được triển khai. Menu tạo mã riêng đã được bỏ; thao tác xem/lưu mã nằm tại từng dòng sản phẩm. Đường dẫn `barcode.html` cũ chuyển về danh sách sản phẩm.
 
 ## Tổ chức code
 
@@ -129,6 +159,9 @@ Sửa/xóa sản phẩm và quét mã bằng webcam chưa được triển khai.
 - `app/db/connection.py`: kết nối theo request, đóng khi kết thúc, CLI `check-db`.
 - `app/errors.py`: phản hồi lỗi database.
 - `../frontend/assets/js/products.js`: gọi API và hiển thị danh sách.
+- `../frontend/assets/js/scanner.js`: điều khiển webcam, gửi frame ảnh và hiển thị kết quả.
+- `app/routes/scanner.py`: endpoint nhận diện webcam và tra cứu mã.
+- `app/services/scanner_service.py`: tiền xử lý ảnh và giải mã OpenCV/pyzbar.
 
 ## Kiểm thử
 

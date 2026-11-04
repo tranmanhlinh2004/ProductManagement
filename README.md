@@ -2,7 +2,7 @@
 
 Ứng dụng dùng Flask + SQL Server để hiển thị thông tin sản phẩm phục vụ tạo và tra cứu mã.
 
-Trang sản phẩm lấy dữ liệu trực tiếp qua API, hiển thị SKU, tên sản phẩm, danh mục, số lượng trong kho và serial. Danh sách được phân trang tối đa 10 sản phẩm/trang. Nút **Thêm sản phẩm mới** mở hộp thoại để lưu sản phẩm và tồn kho ban đầu vào database; serial 8 chữ số được tạo tự động. Menu tạo Barcode/QR đã được bỏ; sửa/xóa sản phẩm và quét webcam chưa được triển khai.
+Trang sản phẩm lấy dữ liệu trực tiếp qua API, hiển thị SKU, tên sản phẩm, danh mục, số lượng trong kho và serial. Danh sách được phân trang tối đa 10 sản phẩm/trang. Nút **Thêm sản phẩm mới** mở hộp thoại để lưu sản phẩm và tồn kho ban đầu vào database; serial 8 chữ số được tạo tự động. Trang **Quét mã bằng webcam** tích hợp OpenCV và pyzbar để quét mã QR và mã vạch trực tiếp qua webcam hoặc máy quét USB để tra cứu thông tin sản phẩm và tồn kho tức thời.
 
 ## Chạy ứng dụng
 
@@ -58,6 +58,7 @@ Live Server → GET http://127.0.0.1:8080/api/products → Flask → SQL Server
 - Tìm kiếm lọc danh sách đã tải theo tên, SKU hoặc serial và trở về trang đầu tiên; mỗi trang hiển thị tối đa 10 sản phẩm.
 - **Thêm sản phẩm mới** mở hộp thoại nhập SKU, tên, danh mục và số lượng trong kho. Danh mục phải đang hoạt động. Khi lưu thành công, sản phẩm xuất hiện ở đầu danh sách cùng serial tự động tạo. Khi trùng SKU hoặc lưu thất bại, hộp thoại giữ nguyên dữ liệu để sửa.
 - Cột **Thao tác** có nút **Xem / lưu mã** cho từng sản phẩm. Hộp thoại hiển thị tên, SKU, serial và cho phép chọn **Mã QR** hoặc **Mã vạch (Code128)**, xem trước và **Lưu PNG**. Backend lưu QR vào `img/QR`, mã vạch vào `img/Barcode` trong thư mục gốc `ProductManagement`; thông báo hiển thị đường dẫn sau khi lưu thành công. Tên ảnh là `product-{id}-{serial}-qr.png` hoặc `product-{id}-{serial}-barcode.png`; lưu lại cùng sản phẩm/loại mã cập nhật cùng file. Cả hai loại mã đều chứa đúng serial 8 chữ số của sản phẩm, giữ nguyên số 0 đầu chuỗi. Mã cũng có sẵn cho sản phẩm vừa thêm.
+- **Quét mã bằng webcam (`scanner.html`)**: Bấm nút **Bật webcam** để thu khung hình video, hệ thống tự động trích xuất frame gửi lên backend. Backend dùng OpenCV (`cv2`) và `pyzbar` để tiền xử lý ảnh, định vị và giải mã cả Barcode (Code128) và QR Code, sau đó tra cứu thông tin sản phẩm và số lượng tồn kho tức thời trong SQL Server. Đồng thời hỗ trợ tra cứu thủ công hoặc dùng máy quét USB qua ô nhập mã.
 - “Tải lại” gửi yêu cầu API mới để lấy dữ liệu hiện tại từ database.
 - Khi không kết nối được database, giao diện hiển thị lỗi và cho phép thử lại.
 

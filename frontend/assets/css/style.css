@@ -123,3 +123,10 @@ dd { margin: 0; overflow-wrap: anywhere; }
   #label-panel { border: 0; padding: 0; background: white; }
   .label-surface { break-inside: avoid; }
 }
+
+.viewfinder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.viewfinder-box { width: 70%; height: 55%; border: 2px dashed #38bdf8; border-radius: 8px; position: relative; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); overflow: hidden; }
+.laser-line { width: 100%; height: 2px; background: #38bdf8; box-shadow: 0 0 8px #38bdf8; position: absolute; top: 0; animation: laser-move 2s ease-in-out infinite alternate; }
+@keyframes laser-move { from { top: 5%; } to { top: 95%; } }
+.viewfinder-hint { color: #f1f5f9; font-size: 13px; margin-top: 10px; background: rgba(0, 0, 0, 0.6); padding: 4px 10px; border-radius: 4px; text-shadow: 0 1px 2px #000; }
+

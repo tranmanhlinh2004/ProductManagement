@@ -6,6 +6,7 @@
   <title>Quét mã | Product Barcode Demo</title>
   <link rel="stylesheet" href="../assets/css/style.css">
   <script src="../assets/js/script.js" defer></script>
+  <script src="../assets/js/scanner.js" defer></script>
 </head>
 <body data-page="scanner">
   <div class="app">
@@ -24,17 +25,28 @@
           <h2>Camera nhận diện</h2>
           <div class="camera-box">
             <video id="camera-video" autoplay playsinline muted aria-label="Hình ảnh webcam"></video>
-            <div id="camera-placeholder">Khung xem trước webcam — chưa triển khai.</div>
+            <div id="camera-placeholder">Khung xem trước webcam. Nhấn “Bật webcam” để bắt đầu.</div>
+            <img id="camera-uploaded-preview" alt="Xem trước ảnh mã tải lên" style="width: 100%; height: 100%; object-fit: contain; background: #0b0f19;" hidden>
+            <div id="viewfinder" class="viewfinder" hidden>
+              <div class="viewfinder-box">
+                <div class="laser-line"></div>
+              </div>
+              <div class="viewfinder-hint">Căn mã vào giữa khung quét (khoảng cách 15–30cm)</div>
+            </div>
           </div>
           <canvas id="camera-frame" hidden></canvas>
           <div id="cam-status" class="camera-status" role="status">Camera đã tắt</div>
-          <div class="actions"><button disabled id="btn-toggle-cam" type="button">Bật webcam</button></div>
-          <p class="hint" style="margin-top:16px">Khung quét mã và tra cứu sản phẩm. Chưa có xử lý camera hoặc nhận diện.</p>
-          <form id="lookup-form" style="margin-top:24px">
+          <div class="actions" style="margin-top:12px; display:flex; gap:10px;">
+            <button id="btn-toggle-cam" type="button" style="flex:1;">Bật webcam</button>
+            <button id="btn-upload-scan" type="button" class="secondary" style="flex:1;">Tải ảnh mã lên</button>
+            <input type="file" id="input-file-scan" accept="image/*" style="display:none">
+          </div>
+          <p class="hint" style="margin-top:16px">Mẹo quét mã vạch 1D: Giữ mã thẳng hàng với vạch laser, đủ ánh sáng và tránh bóng lóa.</p>
+          <form id="lookup-form" style="margin-top:20px">
             <label for="lookup-code">Nhập mã / máy quét USB</label>
             <div class="inline-form">
-              <input disabled id="lookup-code" required maxlength="100" placeholder="Nhập mã rồi nhấn Enter…" autocomplete="off">
-              <button disabled id="btn-lookup" type="submit" class="secondary">Tra cứu</button>
+              <input id="lookup-code" required maxlength="100" placeholder="Nhập mã rồi nhấn Enter…" autocomplete="off">
+              <button id="btn-lookup" type="submit" class="secondary">Tra cứu</button>
             </div>
           </form>
         </section>
@@ -49,6 +61,8 @@
               <div><dt>Danh mục</dt><dd id="scan-res-category"></dd></div>
               <div><dt>Đơn vị</dt><dd id="scan-res-unit"></dd></div>
               <div><dt>Giá bán</dt><dd id="scan-res-price"></dd></div>
+              <div><dt>Số lượng tồn</dt><dd id="scan-res-quantity"></dd></div>
+              <div><dt>Serial</dt><dd id="scan-res-serial"></dd></div>
               <div><dt>Trạng thái</dt><dd id="scan-res-active"></dd></div>
             </dl>
           </div>

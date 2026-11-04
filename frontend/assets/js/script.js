@@ -11,7 +11,4 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.body.dataset.page === page) link.setAttribute('aria-current', 'page');
     nav.append(link);
   }
-  if (document.body.dataset.page !== 'products') {
-    document.getElementById('message').textContent = 'Giao diện khung — chức năng chưa được triển khai.';
-  }
 });

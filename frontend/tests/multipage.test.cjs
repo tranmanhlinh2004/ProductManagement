@@ -1,4 +1,5 @@
-﻿const { test } = require('node:test');
+﻿
+const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
@@ -8,12 +9,14 @@ test('shared navigation contains products and scanner after removing barcode cre
   const source = readFileSync(path.join(__dirname, '../assets/js/script.js'), 'utf8');
   const links = [];
   let initialize;
-  vm.runInNewContext(source, { document: {
-    body: { dataset: { page: 'products' } },
-    addEventListener: (_, callback) => { initialize = callback; },
-    getElementById: () => ({ append: link => links.push(link) }),
-    createElement: () => ({ setAttribute(name, value) { this[name] = value; } })
-  } });
+  vm.runInNewContext(source, {
+    document: {
+      body: { dataset: { page: 'products' } },
+      addEventListener: (_, callback) => { initialize = callback; },
+      getElementById: () => ({ append: link => links.push(link) }),
+      createElement: () => ({ setAttribute(name, value) { this[name] = value; } })
+    }
+  });
   initialize();
   assert.deepEqual(links.map(link => link.href), ['products.html', 'scanner.html']);
   assert.equal(links[0]['aria-current'], 'page');

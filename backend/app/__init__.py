@@ -10,6 +10,7 @@ from .db import init_app as init_database
 from .errors import init_app as init_errors
 from .routes.products import products_api
 from .routes.barcodes import barcodes_api
+from .routes.scanner import scanner_api
 
 
 def create_app(test_config=None):
@@ -30,6 +31,7 @@ def create_app(test_config=None):
     init_errors(app)
     app.register_blueprint(products_api)
     app.register_blueprint(barcodes_api)
+    app.register_blueprint(scanner_api)
 
     @app.get("/")
     def index():
