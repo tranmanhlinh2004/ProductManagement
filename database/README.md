@@ -16,7 +16,7 @@ Sau đó đặt `DB_NAME=QLSP` trong `backend/.env` và khởi động lại bac
 
 Migration giữ các serial 8 chữ số hợp lệ, cấp serial ngẫu nhiên cho mã thiếu/sai định dạng hoặc trùng. `QR` chuyển thành `QR-code`; `CODE128`, `EAN13`, `EAN8`, `UPC_A` chuyển thành `barcode`. Bảng `dbo.product_identifier_migration` lưu giá trị cũ, loại cũ và serial mới để đối chiếu. ID sản phẩm và các tham chiếu tồn kho/giao dịch được giữ nguyên. Các tem chứa mã cũ đã được thay serial cần được tạo/in lại.
 
-Sản phẩm mới được tự sinh serial nếu INSERT bỏ qua cột `product_serial`. Unique index từ chối mã trùng; bên ghi dữ liệu cần thử lại khi xảy ra xung đột serial. Dùng serial đã lưu làm nội dung cho cả barcode (Code128) và QR; khi quét, nội dung trả về chính là 8 chữ số này. Chuyển loại mã không cần cấp serial mới. Phần tạo ảnh và quét webcam hiện chưa được triển khai trong ứng dụng.
+Sản phẩm mới được tự sinh serial nếu INSERT bỏ qua cột `product_serial`. Unique index từ chối mã trùng; bên ghi dữ liệu cần thử lại khi xảy ra xung đột serial. Dùng serial đã lưu làm nội dung cho cả barcode (Code128) và QR; khi quét, nội dung trả về chính là 8 chữ số này. Chuyển loại mã không cần cấp serial mới. Ứng dụng đã hỗ trợ tạo ảnh QR/Code128, quét ảnh và quét webcam; xem [hướng dẫn chạy dự án](../docs/HUONG_DAN_CHAY_DU_AN.md).
 
 Kiểm thử trực tiếp SQL Server (chạy từ `backend`, cần quyền tạo database):
 

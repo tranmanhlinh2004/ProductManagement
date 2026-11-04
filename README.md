@@ -6,6 +6,8 @@ Trang sản phẩm lấy dữ liệu trực tiếp qua API, hiển thị SKU, t�
 
 ## Chạy ứng dụng
 
+Khi đã chuẩn bị đầy đủ môi trường, thư viện và database, xem [Hướng dẫn chạy backend](docs/HUONG_DAN_CHAY_DU_AN.md).
+
 Chạy từ thư mục gốc dự án:
 
 ```powershell
