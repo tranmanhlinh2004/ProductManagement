@@ -17,6 +17,8 @@ class Element {
     this.open = false;
     const classes = new Set();
     this.classList = {
+      add: name => classes.add(name),
+      remove: name => classes.delete(name),
       toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name),
       contains: name => classes.has(name)
     };
@@ -51,11 +53,12 @@ const jsonResponse = (data, status = 200) => ({
   json: async () => data
 });
 
-async function openPage(fetchImpl) {
+async function openPage(fetchImpl, setup = () => {}, environment = {}) {
   const elements = new Map();
   const calls = [];
   const codeUrls = [];
   const revokedUrls = [];
+  const intervals = [];
   let start;
   const document = {
     getElementById(id) {
@@ -75,6 +78,9 @@ async function openPage(fetchImpl) {
       },
       revokeObjectURL: url => revokedUrls.push(url)
     },
+    navigator: environment.navigator || {},
+    setInterval: callback => { intervals.push(callback); return intervals.length; },
+    clearInterval: () => {},
     fetch: async (path, options) => {
       calls.push({ path, options });
       return fetchImpl(new URL(path).pathname, options);
@@ -84,9 +90,10 @@ async function openPage(fetchImpl) {
     for (const id of ['prod-sku', 'prod-name', 'prod-category']) document.getElementById(id).value = '';
     document.getElementById('prod-quantity').value = '0';
   };
+  setup(id => document.getElementById(id));
   start();
   await new Promise(resolve => setImmediate(resolve));
-  return { get: id => document.getElementById(id), calls, codeUrls, revokedUrls };
+  return { get: id => document.getElementById(id), calls, codeUrls, revokedUrls, intervals };
 }
 
 test('loads API data, renders literal database text and preserves serial zeros', async () => {
@@ -226,6 +233,36 @@ test('dialog opens on add, cancels and resets a discarded form', async () => {
   await page.get('btn-close-product').fire('click');
   assert.equal(page.get('product-dialog').open, false);
   assert.equal(page.calls.length, 2);
+});
+
+test('scanner reads a code into SKU and releases the camera', async () => {
+  let trackStopped = false;
+  const stream = { getTracks: () => [{ stop: () => { trackStopped = true; } }] };
+  const page = await openPage((path, options) => path.endsWith('/api/scanner/scan')
+    ? jsonResponse({ found: true, code: 'QR-123', code_type: 'QR-code' })
+    : jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]), id => {
+      const video = id('product-scan-video');
+      video.play = async () => {};
+      video.readyState = 2;
+      video.videoWidth = 640;
+      video.videoHeight = 480;
+      id('product-scan-canvas').getContext = () => ({ drawImage() {} });
+      id('product-scan-canvas').toDataURL = () => 'data:image/jpeg;base64,frame';
+    }, { navigator: { mediaDevices: { getUserMedia: async () => stream } } });
+
+  await page.get('btn-add-product').fire('click');
+  await page.get('btn-scan-product').fire('click');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.intervals.length, 1);
+  await page.intervals[0]();
+
+  assert.equal(page.get('prod-sku').value, 'QR-123');
+  assert.equal(page.get('product-scan-dialog').open, false);
+  assert.equal(trackStopped, true);
+  const scanRequest = page.calls.find(call => call.path.endsWith('/api/scanner/scan'));
+  assert.equal(scanRequest.options.method, 'POST');
+  assert.deepEqual(JSON.parse(scanRequest.options.body), { image: 'data:image/jpeg;base64,frame' });
+  assert.match(page.get('product-form-message').textContent, /điền vào SKU/);
 });
 
 test('saving sends the modal fields and displays the created product on the first page', async () => {

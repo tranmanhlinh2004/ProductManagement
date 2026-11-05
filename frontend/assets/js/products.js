@@ -18,6 +18,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('product-form');
   const fields = document.getElementById('product-fields');
   const formMessage = document.getElementById('product-form-message');
+  const skuInput = document.getElementById('prod-sku');
+  const scanButton = document.getElementById('btn-scan-product');
+  const scanDialog = document.getElementById('product-scan-dialog');
+  const scanVideo = document.getElementById('product-scan-video');
+  const scanCanvas = document.getElementById('product-scan-canvas');
+  const scanPlaceholder = document.getElementById('product-scan-placeholder');
+  const scanStatus = document.getElementById('product-scan-status');
+  const scanClose = document.getElementById('btn-close-product-scan');
+  const scanCancel = document.getElementById('btn-cancel-product-scan');
   const submit = document.getElementById('btn-submit-product');
   const cancel = document.getElementById('btn-cancel-product');
   const close = document.getElementById('btn-close-product');
@@ -39,6 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let codeController = null;
   let codeVersion = 0;
   let codeSaving = false;
+  let scanStream = null;
+  let scanInterval = null;
+  let scanBusy = false;
+  let scanOpener = null;
 
   function showMessage(message, isError = false, target = msg) {
     target.textContent = message;
@@ -60,6 +73,83 @@ document.addEventListener('DOMContentLoaded', () => {
     const data = await requestJson(path);
     if (!Array.isArray(data)) throw new Error('API trả về dữ liệu không hợp lệ.');
     return data;
+  }
+
+  function stopProductScan() {
+    if (scanInterval) clearInterval(scanInterval);
+    scanInterval = null;
+    scanBusy = false;
+    if (scanStream) scanStream.getTracks().forEach(track => track.stop());
+    scanStream = null;
+    scanVideo.srcObject = null;
+  }
+
+  async function scanProductFrame() {
+    if (!scanStream || scanBusy || !scanDialog.open || scanVideo.readyState < 2) return;
+    const width = scanVideo.videoWidth;
+    const height = scanVideo.videoHeight;
+    if (!width || !height) return;
+
+    scanCanvas.width = width;
+    scanCanvas.height = height;
+    scanCanvas.getContext('2d').drawImage(scanVideo, 0, 0, width, height);
+    scanBusy = true;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/scanner/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: scanCanvas.toDataURL('image/jpeg', 0.88) })
+      });
+      const data = await response.json();
+      if (!data.found || !data.code || !scanDialog.open) return;
+
+      stopProductScan();
+      if (!/^[!-~]{1,50}$/.test(data.code)) {
+        scanStatus.textContent = 'Mã đã đọc không phù hợp định dạng SKU (tối đa 50 ký tự ASCII, không khoảng trắng).';
+        scanStatus.classList.add('error');
+        return;
+      }
+      skuInput.value = data.code;
+      showMessage(`Đã quét ${data.code_type === 'QR-code' ? 'mã QR' : 'mã vạch'} và điền vào SKU.`, false, formMessage);
+      scanDialog.close();
+      skuInput.focus();
+    } catch (error) {
+      if (scanDialog.open) {
+        scanStatus.textContent = error instanceof TypeError
+          ? 'Không kết nối được API quét. Hãy kiểm tra backend đang chạy.'
+          : 'Có lỗi khi quét mã. Hãy thử lại.';
+        scanStatus.classList.add('error');
+      }
+    } finally {
+      scanBusy = false;
+    }
+  }
+
+  async function startProductScan() {
+    scanStatus.textContent = 'Đang khởi động camera…';
+    scanStatus.classList.remove('error');
+    scanPlaceholder.hidden = false;
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('camera');
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      if (!scanDialog.open) {
+        stopProductScan();
+        return;
+      }
+      scanVideo.srcObject = scanStream;
+      await scanVideo.play();
+      scanPlaceholder.hidden = true;
+      scanStatus.textContent = 'Đưa mã vạch hoặc QR vào giữa khung hình.';
+      scanInterval = setInterval(scanProductFrame, 350);
+    } catch (error) {
+      stopProductScan();
+      scanStatus.textContent = error.message === 'camera'
+        ? 'Trình duyệt không hỗ trợ camera. Hãy dùng webcam trên localhost hoặc HTTPS.'
+        : 'Không thể mở camera. Hãy cấp quyền truy cập camera rồi thử lại.';
+      scanStatus.classList.add('error');
+    }
   }
 
   function clearCodeImage() {
@@ -270,6 +360,19 @@ document.addEventListener('DOMContentLoaded', () => {
     showMessage('', false, formMessage);
     dialog.showModal();
   });
+  scanButton.addEventListener('click', () => {
+    scanOpener = scanButton;
+    scanDialog.showModal();
+    startProductScan();
+  });
+  for (const button of [scanClose, scanCancel]) {
+    button.addEventListener('click', () => scanDialog.close());
+  }
+  scanDialog.addEventListener('close', () => {
+    stopProductScan();
+    if (scanOpener?.isConnected) scanOpener.focus();
+  });
+  scanDialog.addEventListener('cancel', () => stopProductScan());
   for (const button of [close, cancel]) {
     button.addEventListener('click', () => { if (!saving) dialog.close(); });
   }
