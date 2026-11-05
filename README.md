@@ -105,36 +105,7 @@ Các lệnh sử dụng trực tiếp Python trong `.venv`, vì vậy không c�
 
 ### Bước 4: Cấu hình kết nối SQL Server
 
-Mở `backend/.env` và chỉnh cấu hình theo máy đang sử dụng. Ví dụ kết nối bằng **Windows Authentication**:
-
-```dotenv
-DB_DRIVER=ODBC Driver 18 for SQL Server
-DB_SERVER=localhost
-DB_NAME=QLSP
-DB_TRUSTED_CONNECTION=yes
-DB_USER=
-DB_PASSWORD=
-DB_ENCRYPT=yes
-DB_TRUST_SERVER_CERTIFICATE=yes
-DB_CONNECT_TIMEOUT=5
-DB_QUERY_TIMEOUT=15
-```
-
-- `DB_SERVER`: tên máy chủ hoặc instance giống thông tin kết nối trong SSMS, ví dụ `localhost` hoặc `.\SQLEXPRESS`.
-- `DB_DRIVER`: phải trùng tên ODBC Driver đã cài trên máy.
-- `DB_TRUSTED_CONNECTION=yes`: dùng tài khoản Windows đang chạy backend; tài khoản này cần quyền truy cập và đọc/ghi dữ liệu trong `QLSP`.
-- `DB_TRUST_SERVER_CERTIFICATE=yes`: cấu hình mẫu cho môi trường phát triển cục bộ có chứng chỉ tự ký.
-- `DB_CONNECT_TIMEOUT` và `DB_QUERY_TIMEOUT`: thời gian chờ kết nối và truy vấn, tính bằng giây.
-
-Nếu sử dụng **SQL Server Authentication**, thay ba dòng sau bằng thông tin tài khoản của bạn:
-
-```dotenv
-DB_TRUSTED_CONNECTION=no
-DB_USER=your_sql_username
-DB_PASSWORD=your_sql_password
-```
-
-SQL Server cần bật chế độ cho phép SQL Server Authentication và tài khoản phải có quyền truy cập database `QLSP`.
+Mở `backend/.env.example` và đổi tên thành `.env` và cấu hình SQL tương ứng trên máy
 
 ### Bước 5: Kiểm tra kết nối và khởi động
 
