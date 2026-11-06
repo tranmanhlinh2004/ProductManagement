@@ -17,6 +17,8 @@ class Element {
     this.open = false;
     const classes = new Set();
     this.classList = {
+      add: name => classes.add(name),
+      remove: name => classes.delete(name),
       toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name),
       contains: name => classes.has(name)
     };
@@ -51,12 +53,17 @@ const jsonResponse = (data, status = 200) => ({
   json: async () => data
 });
 
-async function openPage(fetchImpl, pageUrl = 'http://127.0.0.1:5500/frontend/sources/products.html') {
+async function openPage(fetchImpl, {
+  pageUrl = 'http://127.0.0.1:5500/frontend/sources/products.html',
+  setup = () => {}, navigator = {}
+} = {}) {
   const elements = new Map();
   const calls = [];
   const codeUrls = [];
   const revokedUrls = [];
   const historyUrls = [];
+  const intervals = [];
+  const clearedIntervals = [];
   let start;
   const document = {
     getElementById(id) {
@@ -81,6 +88,9 @@ async function openPage(fetchImpl, pageUrl = 'http://127.0.0.1:5500/frontend/sou
       },
       revokeObjectURL: url => revokedUrls.push(url)
     }),
+    navigator,
+    setInterval: callback => { intervals.push(callback); return intervals.length; },
+    clearInterval: id => clearedIntervals.push(id),
     fetch: async (path, options) => {
       calls.push({ path, options });
       return fetchImpl(new URL(path).pathname, options);
@@ -90,9 +100,26 @@ async function openPage(fetchImpl, pageUrl = 'http://127.0.0.1:5500/frontend/sou
     for (const id of ['prod-name', 'prod-category']) document.getElementById(id).value = '';
     document.getElementById('prod-quantity').value = '0';
   };
+  setup(id => document.getElementById(id));
   start();
   await new Promise(resolve => setImmediate(resolve));
-  return { get: id => document.getElementById(id), calls, codeUrls, revokedUrls, historyUrls };
+  return { get: id => document.getElementById(id), calls, codeUrls, revokedUrls, historyUrls, intervals, clearedIntervals };
+}
+
+function prepareProductScanner(get) {
+  const video = get('product-scan-video');
+  video.play = async () => {};
+  video.readyState = 2;
+  video.videoWidth = 640;
+  video.videoHeight = 480;
+  get('product-scan-canvas').getContext = () => ({ drawImage() {} });
+  get('product-scan-canvas').toDataURL = () => 'data:image/jpeg;base64,frame';
+}
+
+async function openProductScanner(page) {
+  await page.get('btn-add-product').fire('click');
+  await page.get('btn-scan-product').fire('click');
+  await new Promise(resolve => setImmediate(resolve));
 }
 
 test('loads API data, renders literal database text and preserves serial zeros', async () => {
@@ -234,6 +261,148 @@ test('dialog opens on add, cancels and resets a discarded form', async () => {
   assert.equal(page.calls.length, 2);
 });
 
+test('product form has unique fields and keeps SKU automatic alongside the scan button', () => {
+  const html = readFileSync(require('node:path').join(__dirname, '../sources/products.html'), 'utf8');
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.includes('prod-serial'));
+  assert.ok(ids.includes('btn-scan-product'));
+  assert.ok(ids.includes('product-scan-dialog'));
+  assert.equal(ids.includes('prod-sku'), false);
+});
+
+for (const [code, type, serial] of [
+  ['0000012345678', 'barcode', '0000012345678'],
+  ['https://example.test/sản-phẩm?id=00001&ghi-chú=đồ uống', 'QR-code', '']
+]) {
+  test(`inline ${type} scan preserves form data, saves the original code and releases the camera`, async () => {
+    let trackStopped = false;
+    const stream = { getTracks: () => [{ stop: () => { trackStopped = true; } }] };
+    const page = await openPage((path, options) => path === '/api/scanner/scan'
+      ? jsonResponse({ found: true, matched: false, code, code_type: type }, 404)
+      : jsonResponse(path === '/api/products'
+        ? options.method === 'POST' ? product({ scanned_code: code, product_serial: serial || '12345678' }) : []
+        : [{ id: 2, name: 'Đồ uống' }]), {
+      setup: prepareProductScanner,
+      navigator: { mediaDevices: { getUserMedia: async () => stream } }
+    });
+
+    await page.get('btn-add-product').fire('click');
+    page.get('prod-name').value = 'Hàng mới';
+    page.get('prod-category').value = '2';
+    page.get('prod-quantity').value = '7';
+    await page.get('btn-scan-product').fire('click');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(page.intervals.length, 1);
+    await page.intervals[0]();
+
+    assert.equal(page.get('prod-serial').value, serial);
+    assert.equal(page.get('prod-scanned-code').value, code);
+    assert.equal(page.get('prod-scanned-code-field').hidden, !!serial);
+    assert.equal(page.get('prod-name').value, 'Hàng mới');
+    assert.equal(page.get('product-scan-dialog').open, false);
+    assert.equal(page.get('product-dialog').open, true);
+    assert.equal(trackStopped, true);
+    assert.deepEqual(page.clearedIntervals, [1]);
+    const scanRequest = page.calls.find(call => call.path.endsWith('/api/scanner/scan'));
+    assert.equal(scanRequest.options.method, 'POST');
+    assert.deepEqual(JSON.parse(scanRequest.options.body), { image: 'data:image/jpeg;base64,frame' });
+    assert.match(page.get('product-form-message').textContent, serial ? /điền vào Serial/ : /điền vào Mã vừa quét/);
+
+    await page.get('product-form').fire('submit');
+    const createRequest = page.calls.find(call => call.path.endsWith('/api/products') && call.options.method === 'POST');
+    assert.deepEqual(JSON.parse(createRequest.options.body), {
+      name: 'Hàng mới', category_id: 2, quantity: 7, scanned_code: code
+    });
+    assert.equal(page.get('product-dialog').open, false);
+    assert.equal(page.get('products-tbody').children[0].children[4].textContent, serial || '12345678');
+  });
+}
+
+test('closing the inline scanner while camera permission is pending releases the late stream', async () => {
+  let finish;
+  let stopped = false;
+  const page = await openPage(path => jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]), {
+    setup: prepareProductScanner,
+    navigator: { mediaDevices: { getUserMedia: () => new Promise(resolve => { finish = resolve; }) } }
+  });
+  await openProductScanner(page);
+  await page.get('btn-close-product-scan').fire('click');
+  finish({ getTracks: () => [{ stop: () => { stopped = true; } }] });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(stopped, true);
+  assert.equal(page.intervals.length, 0);
+  assert.equal(page.get('product-scan-video').srcObject, null);
+  assert.equal(page.get('prod-scanned-code').value, '');
+});
+
+test('a late inline scan cannot overwrite a newly opened scanner session', async () => {
+  let finish;
+  let requests = 0;
+  const stopped = [false, false];
+  let streams = 0;
+  const page = await openPage(path => path === '/api/scanner/scan'
+    ? ++requests === 1 ? new Promise(resolve => { finish = resolve; })
+      : jsonResponse({ found: true, code: '00000222', code_type: 'barcode' }, 404)
+    : jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]), {
+    setup: prepareProductScanner,
+    navigator: { mediaDevices: { getUserMedia: async () => {
+      const index = streams++;
+      return { getTracks: () => [{ stop: () => { stopped[index] = true; } }] };
+    } } }
+  });
+  await openProductScanner(page);
+  const pending = page.intervals[0]();
+  await page.get('btn-cancel-product-scan').fire('click');
+  await page.get('btn-scan-product').fire('click');
+  await new Promise(resolve => setImmediate(resolve));
+  finish(jsonResponse({ found: true, code: '00000111', code_type: 'barcode' }, 404));
+  await pending;
+  assert.equal(page.get('prod-scanned-code').value, '');
+  assert.equal(page.get('product-scan-dialog').open, true);
+  assert.deepEqual(stopped, [true, false]);
+  await page.intervals[1]();
+  assert.equal(page.get('prod-serial').value, '00000222');
+  assert.deepEqual(stopped, [true, true]);
+});
+
+for (const invalidCode of ['1'.repeat(101), 'x'.repeat(451), 'QR\0CODE']) {
+  test(`invalid inline code (${invalidCode.length} characters) leaves the scanner ready for another code`, async () => {
+    let scans = 0;
+    let stopped = false;
+    const page = await openPage(path => path === '/api/scanner/scan'
+      ? jsonResponse({ found: true, code: ++scans === 1 ? invalidCode : '00000123', code_type: 'barcode' }, 404)
+      : jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]), {
+      setup: prepareProductScanner,
+      navigator: { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => { stopped = true; } }] }) } }
+    });
+    await openProductScanner(page);
+    await page.intervals[0]();
+    assert.equal(page.get('prod-scanned-code').value, '');
+    assert.equal(page.get('product-scan-status').classList.contains('error'), true);
+    assert.equal(page.get('product-scan-dialog').open, true);
+    assert.equal(stopped, false);
+    await page.intervals[0]();
+    assert.equal(page.get('prod-serial').value, '00000123');
+    assert.equal(stopped, true);
+  });
+}
+
+test('inline scanner API errors are shown without changing the product form', async () => {
+  const page = await openPage(path => path === '/api/scanner/scan'
+    ? jsonResponse({ error: 'Database tạm ngừng.' }, 503)
+    : jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]), {
+    setup: prepareProductScanner,
+    navigator: { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } }
+  });
+  await openProductScanner(page);
+  await page.intervals[0]();
+  assert.equal(page.get('prod-scanned-code').value, '');
+  assert.match(page.get('product-scan-status').textContent, /Database tạm ngừng/);
+  assert.equal(page.get('product-scan-status').classList.contains('error'), true);
+  assert.equal(page.get('product-scan-dialog').open, true);
+});
+
 test('saving sends the modal fields and displays the created product on the first page', async () => {
   const created = product({ id: 99, sku: 'SP0099', name: 'Hàng mới', quantity: 7 });
   const page = await openPage((path, options) => jsonResponse(options.method === 'POST'
@@ -296,7 +465,7 @@ test('scanner navigation opens the add form and saves the original code with gen
   const code = '0000123456789/đồ uống?x=1&v=+';
   const page = await openPage((path, options) => jsonResponse(options.method === 'POST'
     ? product({ scanned_code: code }) : path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]),
-  `http://127.0.0.1:8080/sources/products.html?scanned_code=${encodeURIComponent(code)}`);
+  { pageUrl: `http://127.0.0.1:8080/sources/products.html?scanned_code=${encodeURIComponent(code)}` });
   assert.equal(page.get('product-dialog').open, true);
   assert.equal(page.get('prod-scanned-code-field').hidden, false);
   assert.equal(page.get('prod-scanned-code').value, code);
@@ -321,7 +490,7 @@ test('a scanner draft waits for categories and survives a failed initial load', 
   const page = await openPage(path => failed
     ? jsonResponse({ error: 'Database tạm ngừng.' }, 503)
     : jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]),
-  'http://127.0.0.1:8080/sources/products.html?scanned_code=00000123');
+  { pageUrl: 'http://127.0.0.1:8080/sources/products.html?scanned_code=00000123' });
   assert.equal(page.get('product-dialog').open, false);
   failed = false;
   await page.get('btn-refresh').fire('click');
@@ -335,7 +504,7 @@ test('numeric barcode fills Serial and the saved row keeps all digits including 
   const page = await openPage((path, options) => jsonResponse(options.method === 'POST'
     ? product({ product_serial: code, scanned_code: code })
     : path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]),
-  `http://127.0.0.1:8080/sources/products.html?scanned_code=${code}`);
+  { pageUrl: `http://127.0.0.1:8080/sources/products.html?scanned_code=${code}` });
   assert.equal(page.get('product-dialog').open, true);
   assert.equal(page.get('prod-serial').value, code);
   assert.equal(page.get('prod-scanned-code-field').hidden, true);

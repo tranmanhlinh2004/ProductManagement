@@ -6,26 +6,26 @@ ProductManagement là ứng dụng web hỗ trợ quản lý thông tin sản ph
 
 - **Xem danh sách sản phẩm:** hiển thị SKU, tên sản phẩm, danh mục, số lượng tồn kho và serial; phân trang tối đa 10 sản phẩm mỗi trang.
 - **Tìm kiếm sản phẩm:** lọc danh sách theo tên, SKU hoặc serial.
-- **Thêm sản phẩm:** nhập tên, danh mục và tồn kho ban đầu. SQL Server tự cấp SKU tăng dần (`SP0001`, `SP0002`, …) và serial duy nhất gồm 8 chữ số, rồi lưu sản phẩm cùng tồn kho trong một transaction.
+- **Thêm sản phẩm:** nhập tên, danh mục và tồn kho ban đầu; có thể chọn **Quét mã** ngay trong form. Mã số được giữ nguyên làm Serial, kể cả số 0 ở đầu; mã QR chứa chữ hoặc URL được lưu vào mã nhận diện bổ sung. SQL Server tự cấp SKU tăng dần (`SP0001`, `SP0002`, …) và serial 8 chữ số khi chưa có serial từ mã quét, rồi lưu sản phẩm cùng tồn kho trong một transaction.
 - **Tạo mã nhận diện:** xem trước và lưu ảnh PNG dưới dạng QR Code hoặc mã vạch Code128. Cả hai loại mã đều chứa serial của sản phẩm, giữ nguyên các chữ số 0 ở đầu.
 - **Quét mã:** nhận diện mã qua webcam hoặc ảnh tải lên, sau đó tra cứu thông tin sản phẩm và số lượng tồn kho.
 - **Tra cứu trực tiếp:** nhập serial hoặc SKU bằng bàn phím, hoặc dùng máy quét USB nhập mã vào ô tra cứu.
 
 ## 2. Công nghệ sử dụng
 
-| Thành phần | Công nghệ | Vai trò |
-| --- | --- | --- |
-| Giao diện | HTML5, CSS3, JavaScript thuần | Xây dựng các trang sản phẩm, hộp thoại và giao diện quét mã |
-| Giao tiếp với backend | Fetch API, JSON | Gửi yêu cầu và nhận dữ liệu từ API |
-| Truy cập webcam | MediaDevices API, Canvas | Thu hình và trích xuất khung hình gửi đến backend |
-| Backend | Python, Flask | Cung cấp API và phục vụ các tệp giao diện |
-| Cơ sở dữ liệu | Microsoft SQL Server | Lưu sản phẩm, danh mục và tồn kho |
-| Kết nối dữ liệu | pyodbc, Microsoft ODBC Driver for SQL Server | Kết nối Python với SQL Server và thực thi truy vấn |
-| Cấu hình môi trường | python-dotenv | Đọc cấu hình kết nối từ tệp `.env` |
-| Xử lý ảnh | OpenCV, NumPy | Đọc ảnh, chuyển ảnh xám và xử lý ảnh phục vụ nhận diện |
-| Giải mã | pyzbar, OpenCV QRCodeDetector | Giải mã mã vạch và mã QR |
-| Tạo ảnh mã | python-barcode, qrcode, Pillow | Sinh ảnh Code128 và QR Code dưới dạng PNG |
-| Kiểm thử | Python unittest, Node.js test runner | Kiểm tra backend và JavaScript phía giao diện |
+| Thành phần             | Công nghệ                                  | Vai trò                                                               |
+| ------------------------ | -------------------------------------------- | ---------------------------------------------------------------------- |
+| Giao diện               | HTML5, CSS3, JavaScript thuần               | Xây dựng các trang sản phẩm, hộp thoại và giao diện quét mã |
+| Giao tiếp với backend  | Fetch API, JSON                              | Gửi yêu cầu và nhận dữ liệu từ API                             |
+| Truy cập webcam         | MediaDevices API, Canvas                     | Thu hình và trích xuất khung hình gửi đến backend              |
+| Backend                  | Python, Flask                                | Cung cấp API và phục vụ các tệp giao diện                       |
+| Cơ sở dữ liệu        | Microsoft SQL Server                         | Lưu sản phẩm, danh mục và tồn kho                                |
+| Kết nối dữ liệu      | pyodbc, Microsoft ODBC Driver for SQL Server | Kết nối Python với SQL Server và thực thi truy vấn               |
+| Cấu hình môi trường | python-dotenv                                | Đọc cấu hình kết nối từ tệp `.env`                           |
+| Xử lý ảnh             | OpenCV, NumPy                                | Đọc ảnh, chuyển ảnh xám và xử lý ảnh phục vụ nhận diện   |
+| Giải mã                | pyzbar, OpenCV QRCodeDetector                | Giải mã mã vạch và mã QR                                         |
+| Tạo ảnh mã            | python-barcode, qrcode, Pillow               | Sinh ảnh Code128 và QR Code dưới dạng PNG                         |
+| Kiểm thử               | Python unittest, Node.js test runner         | Kiểm tra backend và JavaScript phía giao diện                      |
 
 Luồng hoạt động: giao diện gửi yêu cầu đến Flask; backend xử lý nghiệp vụ và truy vấn SQL Server, sau đó trả dữ liệu cho giao diện. Với chức năng quét mã, backend giải mã ảnh trước khi tìm sản phẩm theo serial hoặc SKU.
 
@@ -90,7 +90,6 @@ python -m pip --version
 3. Nếu cần dữ liệu để chạy thử, mở và chạy [database/SQLQuery2.sql](database/SQLQuery2.sql). Script tạo 50 sản phẩm mẫu cùng danh mục, tồn kho và dữ liệu liên quan.
 
 Hai script này dành cho database mới; script dữ liệu mẫu yêu cầu các bảng đang rỗng. Ứng dụng cần có danh mục đang hoạt động trong bảng `categories` để thêm sản phẩm qua giao diện. Có thể tạo danh mục bằng SQL nếu không dùng dữ liệu mẫu.
-
 
 ### Bước 3: Cài đặt thư viện backend
 

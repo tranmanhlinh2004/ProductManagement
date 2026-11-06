@@ -60,7 +60,13 @@
         <label>Tên sản phẩm <input id="prod-name" required maxlength="200" autofocus></label>
         <label>Danh mục <select id="prod-category" required><option value="">Chọn danh mục</option></select></label>
         <label>Số lượng trong kho <input id="prod-quantity" type="number" min="0" max="2147483647" step="1" required value="0"></label>
-        <label>Serial <input id="prod-serial" readonly placeholder="Tự động tạo khi lưu"></label>
+        <div class="serial-field">
+          <label for="prod-serial">Serial</label>
+          <div class="serial-input-row">
+            <input id="prod-serial" readonly placeholder="Tự động tạo khi lưu">
+            <button id="btn-scan-product" type="button" class="secondary" aria-haspopup="dialog" aria-controls="product-scan-dialog">Quét mã</button>
+          </div>
+        </div>
         <label id="prod-scanned-code-field" hidden>Mã vừa quét <input id="prod-scanned-code" readonly></label>
       </fieldset>
       <p id="product-form-message" class="message" role="status" aria-live="polite"></p>
@@ -69,6 +75,21 @@
         <button id="btn-submit-product" type="submit">Lưu sản phẩm</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="product-scan-dialog" class="product-dialog product-scan-dialog" aria-labelledby="product-scan-title">
+    <div class="dialog-header">
+      <h2 id="product-scan-title">Quét mã vạch / QR</h2>
+      <button id="btn-close-product-scan" type="button" class="secondary" aria-label="Đóng trình quét">×</button>
+    </div>
+    <div class="camera-box product-camera-box">
+      <video id="product-scan-video" autoplay playsinline muted aria-label="Hình ảnh webcam để quét mã"></video>
+      <div id="product-scan-placeholder">Đang chờ mở camera…</div>
+    </div>
+    <canvas id="product-scan-canvas" hidden></canvas>
+    <p id="product-scan-status" class="camera-status" role="status" aria-live="polite">Đang khởi động camera…</p>
+    <div class="actions dialog-actions">
+      <button id="btn-cancel-product-scan" type="button" class="secondary">Hủy</button>
+    </div>
   </dialog>
   <dialog id="code-dialog" class="product-dialog code-dialog" aria-labelledby="code-title" aria-describedby="code-product-name code-product-details">
     <div class="dialog-header">
