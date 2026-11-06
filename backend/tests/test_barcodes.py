@@ -22,7 +22,8 @@ except (ImportError, OSError):
 class BarcodeGenerationTests(unittest.TestCase):
     @unittest.skipUnless(decode, 'ZBar decoder unavailable')
     def test_both_formats_decode_to_the_exact_serial(self):
-        for serial in ('00123456', '00000000', '99999999', '99001234', '00991234'):
+        for serial in ('00123456', '00000000', '99999999', '99001234', '00991234',
+                       '000001234567', '8850092300500', '0000012345678', '00123456789012'):
             for code_type, symbol_type in (('QR-code', 'QRCODE'), ('barcode', 'CODE128')):
                 with self.subTest(serial=serial, code_type=code_type):
                     image = Image.open(BytesIO(generate_png(serial, code_type)))
@@ -32,7 +33,7 @@ class BarcodeGenerationTests(unittest.TestCase):
                                      [(symbol_type, serial)])
 
     def test_invalid_serials_and_types_are_rejected(self):
-        for serial in ('1234567', '123456789', 'abcdefgh', '１２３４５６７８', None, 12345678):
+        for serial in ('', '1' * 101, '1234567 ', 'abcdefgh', '１２３４５６７８', None, 12345678):
             for code_type in ('QR-code', 'barcode'):
                 with self.subTest(serial=serial, code_type=code_type):
                     with self.assertRaises(InvalidProductError):
@@ -103,7 +104,7 @@ class ProductCodeApiTests(unittest.TestCase):
         self.get_db.assert_not_called()
 
     def test_invalid_database_serial_returns_useful_error(self):
-        self.cursor.fetchone.return_value = (7, 'SP007', 'Sữa tươi', '123', 'QR-code')
+        self.cursor.fetchone.return_value = (7, 'SP007', 'Sữa tươi', 'ABC', 'QR-code')
         response = self.client.get('/api/products/7/code')
         self.assertEqual(response.status_code, 400)
         self.assertIn('Serial', response.get_json()['error'])

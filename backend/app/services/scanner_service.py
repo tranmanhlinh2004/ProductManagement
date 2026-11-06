@@ -97,6 +97,15 @@ def decode_image(image_data: Any) -> Optional[Dict[str, Any]]:
 
             raw_type = str(first.type)
             code_type = "QR-code" if raw_type == "QRCODE" else "barcode"
+            if raw_type == "QRCODE" and not code_str.isascii():
+                # ZBar can guess Shift-JIS for UTF-8 QR content. Prefer OpenCV's
+                # UTF-8 result when available so Vietnamese codes stay intact.
+                try:
+                    qr_value, _, _ = cv2.QRCodeDetector().detectAndDecode(cand)
+                    if qr_value and qr_value.strip():
+                        code_str = qr_value.strip()
+                except (cv2.error, UnicodeDecodeError):
+                    pass
 
             rect = first.rect
             bbox = {

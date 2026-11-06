@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sản phẩm | Product Barcode Demo</title>
+  <title>Sản phẩm </title>
   <link rel="stylesheet" href="../assets/css/style.css">
   <script src="../assets/js/script.js" defer></script>
   <script src="../assets/js/products.js" defer></script>
@@ -11,8 +11,7 @@
 <body data-page="products">
   <div class="app">
     <aside class="sidebar">
-      <div class="brand">PRODUCT BARCODE</div>
-      <p class="brand-sub">Demo nhận diện sản phẩm</p>
+      <div class="brand">HỆ THỐNG NHẬN DIỆN MÃ VẠCH</div>
       <nav id="primary-nav" aria-label="Chức năng chính"></nav>
       <p class="demo-note">Quản lý sản phẩm và tra cứu thông tin qua mã nhận diện.</p>
     </aside>
@@ -28,7 +27,7 @@
       <section class="card" aria-labelledby="list-title">
         <h2 id="list-title">Danh sách sản phẩm</h2>
         <div class="toolbar">
-          <input id="product-search" type="search" placeholder="Tìm tên, SKU hoặc serial…" aria-label="Tìm sản phẩm">
+          <input id="product-search" type="search" placeholder="Tìm tên, SKU, serial hoặc mã quét…" aria-label="Tìm sản phẩm">
           <span id="product-count" class="muted"></span>
           <button id="btn-refresh" type="button" class="secondary">Tải lại</button>
         </div>
@@ -55,14 +54,14 @@
       <h2 id="form-title">Thêm sản phẩm mới</h2>
       <button id="btn-close-product" type="button" class="secondary" aria-label="Đóng hộp thoại">×</button>
     </div>
-    <p id="product-form-hint" class="hint">Nhập thông tin sản phẩm. Serial gồm 8 chữ số sẽ được tạo tự động khi lưu.</p>
+    <p id="product-form-hint" class="hint">SKU được cấp tự động. Serial lấy từ dãy số mã vạch vừa quét; nếu thêm thủ công, hệ thống tự tạo serial 8 chữ số.</p>
     <form id="product-form">
       <fieldset id="product-fields" class="form-grid">
-        <label>SKU <input id="prod-sku" required maxlength="50" pattern="[!-~]+" placeholder="VD: SP001" title="Ký tự ASCII, không dấu và không khoảng trắng" autofocus></label>
-        <label>Tên sản phẩm <input id="prod-name" required maxlength="200"></label>
+        <label>Tên sản phẩm <input id="prod-name" required maxlength="200" autofocus></label>
         <label>Danh mục <select id="prod-category" required><option value="">Chọn danh mục</option></select></label>
         <label>Số lượng trong kho <input id="prod-quantity" type="number" min="0" max="2147483647" step="1" required value="0"></label>
         <label>Serial <input id="prod-serial" readonly placeholder="Tự động tạo khi lưu"></label>
+        <label id="prod-scanned-code-field" hidden>Mã vừa quét <input id="prod-scanned-code" readonly></label>
       </fieldset>
       <p id="product-form-message" class="message" role="status" aria-live="polite"></p>
       <div class="actions dialog-actions">

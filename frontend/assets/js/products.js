@@ -29,6 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const codeSave = document.getElementById('btn-save-code');
   const codeClose = document.getElementById('btn-close-code');
   const codeRetry = document.getElementById('btn-retry-code');
+  const scannedCodeField = document.getElementById('prod-scanned-code-field');
+  const scannedCodeInput = document.getElementById('prod-scanned-code');
+  const initialUrl = new URL(window.location.href);
+  let pendingScannedCode = initialUrl.searchParams.get('scanned_code');
   let products = [];
   let loaded = false;
   let page = 1;
@@ -154,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!loaded) return;
     const query = search.value.toLowerCase().trim();
     const list = products.filter(product =>
-      [product.name, product.sku, product.product_serial].some(value =>
+      [product.name, product.sku, product.product_serial, product.scanned_code].some(value =>
         String(value ?? '').toLowerCase().includes(query)));
     const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
     page = Math.min(Math.max(1, page), pages);
@@ -217,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     count.textContent = '';
     empty.hidden = false;
     empty.textContent = 'Đang tải dữ liệu sản phẩm…';
-    showMessage('Đang lấy dữ liệu từ cơ sở dữ liệu…');
+
 
     try {
       const [productData, categories] = await Promise.all([
@@ -234,8 +238,13 @@ document.addEventListener('DOMContentLoaded', () => {
       loaded = true;
       add.disabled = categories.length === 0;
       render();
-      showMessage(`Đã tải ${products.length} sản phẩm từ cơ sở dữ liệu.`
-        + (categories.length ? '' : ' Chưa có danh mục đang hoạt động để thêm sản phẩm.'));
+      showMessage(categories.length ? '' : 'Chưa có danh mục đang hoạt động để thêm sản phẩm.');
+      if (pendingScannedCode !== null && categories.length) {
+        openProductForm(pendingScannedCode);
+        pendingScannedCode = null;
+        initialUrl.searchParams.delete('scanned_code');
+        window.history.replaceState(null, '', initialUrl.href);
+      }
     } catch (error) {
       empty.hidden = false;
       empty.textContent = 'Không tải được dữ liệu. Nhấn “Tải lại” để thử lại.';
@@ -265,11 +274,16 @@ document.addEventListener('DOMContentLoaded', () => {
   refresh.addEventListener('click', loadProducts);
   previous.addEventListener('click', () => { page -= 1; render(); });
   next.addEventListener('click', () => { page += 1; render(); });
-  add.addEventListener('click', () => {
+  function openProductForm(scannedCode = '') {
     form.reset();
+    const scannedSerial = /^[0-9]+$/.test(scannedCode) ? scannedCode : '';
+    document.getElementById('prod-serial').value = scannedSerial;
+    scannedCodeInput.value = scannedCode;
+    scannedCodeField.hidden = !scannedCode || !!scannedSerial;
     showMessage('', false, formMessage);
     dialog.showModal();
-  });
+  }
+  add.addEventListener('click', () => openProductForm());
   for (const button of [close, cancel]) {
     button.addEventListener('click', () => { if (!saving) dialog.close(); });
   }
@@ -279,11 +293,11 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     if (saving || !form.reportValidity()) return;
     const payload = {
-      sku: document.getElementById('prod-sku').value.trim(),
       name: document.getElementById('prod-name').value.trim(),
       category_id: Number(categorySelect.value),
       quantity: Number(document.getElementById('prod-quantity').value)
     };
+    if (scannedCodeInput.value) payload.scanned_code = scannedCodeInput.value;
     saving = true;
     fields.disabled = submit.disabled = cancel.disabled = close.disabled = true;
     submit.textContent = 'Đang lưu…';
@@ -299,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
       page = 1;
       render();
       dialog.close();
-      showMessage(`Đã thêm sản phẩm ${product.name}. Serial: ${product.product_serial}.`);
+
     } catch (error) {
       showMessage(error instanceof TypeError
         ? 'Mất kết nối khi lưu. Hãy tải lại danh sách để kiểm tra sản phẩm trước khi thử lại.'

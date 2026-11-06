@@ -156,12 +156,12 @@ class ProductApiTests(unittest.TestCase):
             "id", "sku", "name", "category_id", "category", "unit", "sale_price",
             "product_serial", "type", "is_active", "quantity",
         )]
-        return (99, "SP099", "Sản phẩm mới", 2, "Đồ uống", "Cái", Decimal("0.00"),
+        return (99, "SP0099", "Sản phẩm mới", 2, "Đồ uống", "Cái", Decimal("0.00"),
                 "00123456", "QR-code", 1, 7)
 
     def post_product(self, **overrides):
         return self.client.post("/api/products", json={
-            "sku": "SP099", "name": "Sản phẩm mới", "category_id": 2, "quantity": 7,
+            "name": "Sản phẩm mới", "category_id": 2, "quantity": 7,
             **overrides,
         }, headers={"Origin": "http://localhost:5500"})
 
@@ -170,12 +170,14 @@ class ProductApiTests(unittest.TestCase):
         response = self.post_product()
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.get_json()["quantity"], 7)
+        self.assertEqual(response.get_json()["sku"], "SP0099")
         self.assertEqual(response.get_json()["product_serial"], "00123456")
         self.assertEqual(response.get_json()["sale_price"], "0.00")
         calls = self.cursor.execute.call_args_list
         self.assertIn("INSERT INTO dbo.products", calls[0].args[0])
         self.assertIn("c.is_active = 1", calls[0].args[0])
-        self.assertEqual(calls[0].args[1:], ("SP099", "Sản phẩm mới", 2))
+        self.assertIn("INSERT INTO dbo.products (name, category_id)", calls[0].args[0])
+        self.assertEqual(calls[0].args[1:], ("Sản phẩm mới", 2))
         self.assertIn("INSERT INTO dbo.inventory", calls[1].args[0])
         self.assertEqual(calls[1].args[1:], (99, 7))
         self.connection.commit.assert_called_once()
@@ -186,11 +188,15 @@ class ProductApiTests(unittest.TestCase):
     def test_invalid_product_input_never_opens_database(self):
         for overrides in (
             {"sku": ""}, {"sku": "có dấu"}, {"sku": "A B"}, {"sku": "A" * 51},
-            {"sku": None}, {"name": "   "}, {"name": "A" * 201}, {"name": 123},
+            {"sku": None}, {"sku": "SP9999"}, {"name": "   "}, {"name": "A" * 201}, {"name": 123},
             {"category_id": None}, {"category_id": True}, {"category_id": 0},
             {"category_id": "2"}, {"category_id": 2147483648},
             {"quantity": -1}, {"quantity": 1.5}, {"quantity": True},
             {"quantity": "7"}, {"quantity": 2147483648},
+            {"scanned_code": ""}, {"scanned_code": "   "}, {"scanned_code": 123},
+            {"scanned_code": "A" * 451}, {"scanned_code": "\U0001f600" * 226},
+            {"scanned_code": "A\x00B"},
+            {"scanned_code": "1" * 101},
         ):
             with self.subTest(overrides=overrides):
                 response = self.post_product(**overrides)
@@ -204,6 +210,71 @@ class ProductApiTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/products", data="text").status_code, 400)
         self.get_db.assert_not_called()
 
+    def test_create_preserves_scanned_code_and_generated_serial(self):
+        code = "0000012345678/đồ uống?x=1&v=+"
+        row = self.created_row() + (code,)
+        self.cursor.description.append(("scanned_code",))
+        self.cursor.fetchone.side_effect = [None, (99,), row]
+        response = self.post_product(scanned_code=code)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["scanned_code"], code)
+        self.assertEqual(response.get_json()["product_serial"], "00123456")
+        calls = self.cursor.execute.call_args_list
+        self.assertIn("UPDLOCK, HOLDLOCK", calls[0].args[0])
+        self.assertEqual(calls[0].args[1:], (code, code, code))
+        self.assertIn("INSERT INTO dbo.products (name, category_id, scanned_code)", calls[1].args[0])
+        self.assertEqual(calls[1].args[1:], ("Sản phẩm mới", code, 2))
+        self.connection.commit.assert_called_once()
+
+    def test_already_registered_scanned_code_does_not_create_another_product(self):
+        self.cursor.fetchone.return_value = (7,)
+        response = self.post_product(scanned_code="0000012345678")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("đã được sử dụng", response.get_json()["error"])
+        self.assertEqual(self.cursor.execute.call_count, 1)
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once()
+
+    def test_numeric_barcode_is_saved_as_serial_without_losing_leading_zeros(self):
+        code = "0000012345678"
+        row = list(self.created_row())
+        row[7] = code
+        self.cursor.description.append(("scanned_code",))
+        self.cursor.fetchone.side_effect = [None, (99,), tuple(row) + (code,)]
+        response = self.post_product(scanned_code=code)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["product_serial"], code)
+        self.assertEqual(response.get_json()["scanned_code"], code)
+        insert = self.cursor.execute.call_args_list[1]
+        self.assertIn("scanned_code, product_serial", insert.args[0])
+        self.assertEqual(insert.args[1:], ("Sản phẩm mới", code, code, 2))
+        self.connection.commit.assert_called_once()
+
+    def test_scanned_serial_collision_is_reported_without_generating_another_serial(self):
+        self.cursor.fetchone.return_value = None
+        self.cursor.execute.side_effect = [None, pyodbc.IntegrityError(
+            "23000", "IX_products_product_serial (2601) private-value"
+        )]
+        response = self.post_product(scanned_code="8850092300500")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("đã được sử dụng", response.get_json()["error"])
+        self.assertNotIn("private-", response.get_data(as_text=True))
+        self.assertEqual(self.cursor.execute.call_count, 2)
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once()
+
+    def test_scanned_code_unique_index_conflict_returns_a_useful_error(self):
+        self.cursor.fetchone.return_value = None
+        self.cursor.execute.side_effect = [None, pyodbc.IntegrityError(
+            "23000", "IX_products_scanned_code (2601) private-value"
+        )]
+        response = self.post_product(scanned_code="8850092300500")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("đã được sử dụng", response.get_json()["error"])
+        self.assertNotIn("private-", response.get_data(as_text=True))
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once()
+
     def test_inactive_category_does_not_create_stock_or_commit(self):
         self.cursor.fetchone.return_value = None
         response = self.post_product()
@@ -213,19 +284,19 @@ class ProductApiTests(unittest.TestCase):
         self.connection.commit.assert_not_called()
         self.connection.rollback.assert_called_once()
 
-    def test_duplicate_sku_returns_conflict_without_private_details(self):
-        self.cursor.execute.side_effect = [pyodbc.IntegrityError("23000", "private-query (2627)"), None]
-        self.cursor.fetchone.return_value = (1,)
-        response = self.post_product()
-        self.assertEqual(response.status_code, 409)
-        self.assertIn("SKU đã tồn tại", response.get_json()["error"])
+    def test_identifier_collision_exhausts_five_attempts_without_private_details(self):
+        self.cursor.execute.side_effect = pyodbc.IntegrityError("23000", "private-query (2627)")
+        with self.assertLogs(self.app.logger, level="ERROR"):
+            response = self.post_product()
+        self.assertEqual(response.status_code, 503)
         self.assertNotIn("private-", response.get_data(as_text=True))
         self.connection.commit.assert_not_called()
-        self.connection.rollback.assert_called_once()
+        self.assertEqual(self.connection.rollback.call_count, 5)
+        self.assertEqual(self.cursor.execute.call_count, 5)
 
     def test_serial_collision_retries_with_new_database_default(self):
-        self.cursor.execute.side_effect = [pyodbc.IntegrityError("23000", "serial (2601)"), None, None, None, None]
-        self.cursor.fetchone.side_effect = [None, (99,), self.created_row()]
+        self.cursor.execute.side_effect = [pyodbc.IntegrityError("23000", "serial (2601)"), None, None, None]
+        self.cursor.fetchone.side_effect = [(99,), self.created_row()]
         response = self.post_product()
         self.assertEqual(response.status_code, 201)
         self.connection.rollback.assert_called_once()

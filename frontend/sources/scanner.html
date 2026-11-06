@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Quét mã | Product Barcode Demo</title>
+  <title>Quét mã </title>
   <link rel="stylesheet" href="../assets/css/style.css">
   <script src="../assets/js/script.js" defer></script>
   <script src="../assets/js/scanner.js" defer></script>
@@ -11,8 +11,8 @@
 <body data-page="scanner">
   <div class="app">
     <aside class="sidebar">
-      <div class="brand">PRODUCT BARCODE</div>
-      <p class="brand-sub">Demo nhận diện sản phẩm</p>
+      <div class="brand">HỆ THỐNG NHẬN DIỆN MÃ VẠCH</div>
+
       <nav id="primary-nav" aria-label="Chức năng chính"></nav>
       <p class="demo-note">Quản lý sản phẩm và tra cứu thông tin qua mã nhận diện.</p>
     </aside>
@@ -41,11 +41,10 @@
             <button id="btn-upload-scan" type="button" class="secondary" style="flex:1;">Tải ảnh mã lên</button>
             <input type="file" id="input-file-scan" accept="image/*" style="display:none">
           </div>
-          <p class="hint" style="margin-top:16px">Mẹo quét mã vạch 1D: Giữ mã thẳng hàng với vạch laser, đủ ánh sáng và tránh bóng lóa.</p>
           <form id="lookup-form" style="margin-top:20px">
             <label for="lookup-code">Nhập mã / máy quét USB</label>
             <div class="inline-form">
-              <input id="lookup-code" required maxlength="100" placeholder="Nhập mã rồi nhấn Enter…" autocomplete="off">
+              <input id="lookup-code" required maxlength="450" placeholder="Nhập mã rồi nhấn Enter…" autocomplete="off">
               <button id="btn-lookup" type="submit" class="secondary">Tra cứu</button>
             </div>
           </form>
@@ -70,5 +69,14 @@
       </div>
     </main>
   </div>
+  <dialog id="unknown-product-dialog" class="product-dialog" aria-labelledby="unknown-product-title" aria-describedby="unknown-product-description unknown-product-code">
+    <h2 id="unknown-product-title">Không có sản phẩm trong cơ sở dữ liệu</h2>
+    <p id="unknown-product-description">Bạn có muốn thêm sản phẩm mới với mã vừa quét không?</p>
+    <p id="unknown-product-code" class="message"></p>
+    <div class="actions dialog-actions">
+      <button id="btn-exit-unknown-product" type="button" class="secondary" autofocus>Thoát</button>
+      <button id="btn-add-unknown-product" type="button">Thêm mới sản phẩm</button>
+    </div>
+  </dialog>
 </body>
 </html>

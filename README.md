@@ -6,7 +6,7 @@ ProductManagement là ứng dụng web hỗ trợ quản lý thông tin sản ph
 
 - **Xem danh sách sản phẩm:** hiển thị SKU, tên sản phẩm, danh mục, số lượng tồn kho và serial; phân trang tối đa 10 sản phẩm mỗi trang.
 - **Tìm kiếm sản phẩm:** lọc danh sách theo tên, SKU hoặc serial.
-- **Thêm sản phẩm:** nhập SKU, tên, danh mục và tồn kho ban đầu. Hệ thống tự tạo serial duy nhất gồm 8 chữ số và lưu sản phẩm cùng tồn kho vào cơ sở dữ liệu.
+- **Thêm sản phẩm:** nhập tên, danh mục và tồn kho ban đầu. SQL Server tự cấp SKU tăng dần (`SP0001`, `SP0002`, …) và serial duy nhất gồm 8 chữ số, rồi lưu sản phẩm cùng tồn kho trong một transaction.
 - **Tạo mã nhận diện:** xem trước và lưu ảnh PNG dưới dạng QR Code hoặc mã vạch Code128. Cả hai loại mã đều chứa serial của sản phẩm, giữ nguyên các chữ số 0 ở đầu.
 - **Quét mã:** nhận diện mã qua webcam hoặc ảnh tải lên, sau đó tra cứu thông tin sản phẩm và số lượng tồn kho.
 - **Tra cứu trực tiếp:** nhập serial hoặc SKU bằng bàn phím, hoặc dùng máy quét USB nhập mã vào ô tra cứu.
@@ -28,6 +28,8 @@ ProductManagement là ứng dụng web hỗ trợ quản lý thông tin sản ph
 | Kiểm thử | Python unittest, Node.js test runner | Kiểm tra backend và JavaScript phía giao diện |
 
 Luồng hoạt động: giao diện gửi yêu cầu đến Flask; backend xử lý nghiệp vụ và truy vấn SQL Server, sau đó trả dữ liệu cho giao diện. Với chức năng quét mã, backend giải mã ảnh trước khi tìm sản phẩm theo serial hoặc SKU.
+
+Cơ sở dữ liệu chỉ giữ 3 bảng được ứng dụng sử dụng: `categories`, `products`, `inventory`. Với database cũ, sao lưu rồi chạy [migration 003](database/migrations/003_simplify_schema_auto_sku.sql) để xóa các bảng không dùng và bật SKU tự tăng; xem [hướng dẫn database](database/README.md). Migration giữ nguyên SKU, serial và tồn kho hiện có.
 
 ## 3. Cấu trúc dự án
 
@@ -142,9 +144,12 @@ Dự án cũng có task `ProductManagement: Start backend` trong [.vscode/tasks.
 ## 5. Sử dụng hệ thống
 
 1. Mở trang **Sản phẩm** để xem danh sách hoặc tìm theo tên, SKU, serial. Nút **Tải lại** lấy dữ liệu hiện tại từ cơ sở dữ liệu.
-2. Chọn **Thêm sản phẩm mới**, nhập SKU, tên, danh mục và số lượng tồn kho ban đầu rồi lưu. Serial được tạo tự động sau khi lưu thành công.
+2. Chọn **Thêm sản phẩm mới**, nhập tên, danh mục và số lượng tồn kho ban đầu rồi lưu. SKU và serial được tạo tự động; SKU được hiển thị trong danh sách và thông báo lưu thành công.
 3. Chọn **Xem / lưu mã** ở sản phẩm, chọn **Mã QR** hoặc **Mã vạch (Code128)** để xem trước. Nút **Lưu PNG** lưu ảnh trên máy chạy backend vào `img/QR/` hoặc `img/Barcode/`.
 4. Mở **Quét mã bằng webcam**, chọn **Bật webcam** và cấp quyền camera cho trình duyệt. Đưa mã vào khung hình để xem thông tin sản phẩm.
 5. Có thể chọn **Tải ảnh mã lên**, nhập serial/SKU hoặc dùng máy quét USB tại ô **Nhập mã / máy quét USB** rồi thực hiện tra cứu.
+6. Nếu mã chưa có trong cơ sở dữ liệu, hộp thoại hiển thị mã vừa quét cùng hai lựa chọn **Thoát** và **Thêm mới sản phẩm**. Chọn thêm mới để mở form sản phẩm với mã điền sẵn. Dãy số mã vạch được điền vào **Serial** và giữ nguyên khi lưu, kể cả số 0 ở đầu; QR chứa chữ hoặc URL được lưu thành mã nhận diện bổ sung. Sau khi lưu có thể tra cứu bằng chính mã đó. SKU vẫn được cấp tự động. Database hiện có cần chạy [migration 004](database/migrations/004_product_scanned_code.sql) và [migration 005](database/migrations/005_scanned_barcode_serial.sql).
 
 Ảnh được lưu theo tên `product-{id}-{serial}-qr.png` hoặc `product-{id}-{serial}-barcode.png`. Lưu lại cùng sản phẩm và loại mã sẽ cập nhật tệp ảnh tương ứng.
+
+SKU được cấp bằng SQL Server sequence để không trùng khi thêm đồng thời. Database mới bắt đầu từ `SP0001`; migration bắt đầu sau hậu tố số lớn nhất của các SKU `SP…` hiện có. Sau `SP9999` là `SP10000`. Số có thể bị khuyết khi rollback/thử lại hoặc xóa sản phẩm. API thêm sản phẩm nhận `name`, `category_id`, `quantity`, tùy chọn `scanned_code` và từ chối trường `sku` do khách gửi.

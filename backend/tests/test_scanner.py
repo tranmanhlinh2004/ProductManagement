@@ -10,6 +10,16 @@ from app.services import barcode_service, scanner_service
 
 
 class ScannerServiceTests(unittest.TestCase):
+    def test_decode_qr_preserves_vietnamese_content(self):
+        import qrcode
+
+        code = "https://example.test/sản-phẩm?id=01&x=+"
+        image = BytesIO()
+        qrcode.make(code).save(image, format="PNG")
+        decoded = scanner_service.decode_image(image.getvalue())
+        self.assertIsNotNone(decoded)
+        self.assertEqual(decoded["code"], code)
+
     def test_decode_qr_image(self):
         """Verify OpenCV + pyzbar can decode a generated QR-code image."""
         serial = "59324987"
@@ -151,6 +161,13 @@ class ScannerApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         data = response.get_json()
         self.assertFalse(data["found"])
+
+    def test_lookup_can_match_an_external_scanned_code(self):
+        response = self.client.post("/api/scanner/lookup", json={"code": "8850092300500"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["code"], "8850092300500")
+        self.assertIn("p.scanned_code = ?", self.cursor.execute.call_args.args[0])
+        self.assertEqual(self.cursor.execute.call_args.args[1:], ("8850092300500",) * 3)
 
     def test_lookup_empty_code_returns_400(self):
         response = self.client.post(

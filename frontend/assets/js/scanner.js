@@ -18,6 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const scanStatus = document.getElementById('scan-status');
   const scanEmpty = document.getElementById('scan-empty');
   const scanResult = document.getElementById('scan-result');
+  const unknownDialog = document.getElementById('unknown-product-dialog');
+  const unknownCode = document.getElementById('unknown-product-code');
+  const exitUnknownBtn = document.getElementById('btn-exit-unknown-product');
+  const addUnknownBtn = document.getElementById('btn-add-unknown-product');
 
   // Product fields
   const resName = document.getElementById('scan-res-name');
@@ -35,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastScannedCode = null;
   let lastScannedTime = 0;
   let scannedFrameCount = 0;
+  let pendingScannedCode = null;
+  let dismissedCameraCode = null;
   const SCAN_COOLDOWN_MS = 2500;
 
   function showMessage(msg, isError = false) {
@@ -97,12 +103,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function processScannedData(data) {
-    if (!data) return;
+  function showUnknownProduct(code) {
+    if (unknownDialog.open) return;
+    pendingScannedCode = code;
+    lookupInput.value = code;
+    clearProduct(`Mã "${code}" không thuộc sản phẩm nào.`);
+    showMessage(`Phát hiện mã ${code} nhưng không có trong cơ sở dữ liệu.`, true);
+    unknownCode.textContent = `Mã vừa quét: ${code}`;
+    unknownDialog.showModal();
+    if (mediaStream) camStatus.textContent = 'Camera tạm dừng quét. Vui lòng chọn thao tác trong hộp thoại.';
+  }
+
+  exitUnknownBtn.addEventListener('click', () => unknownDialog.close());
+  unknownDialog.addEventListener('close', () => {
+    // Require the dismissed code to leave the camera before prompting again.
+    dismissedCameraCode = pendingScannedCode;
+    pendingScannedCode = null;
+    if (mediaStream) camStatus.textContent = '● Camera đang quét…';
+    lookupInput.focus();
+  });
+  addUnknownBtn.addEventListener('click', () => {
+    if (!pendingScannedCode) return;
+    const target = new URL('products.html', window.location.href);
+    target.searchParams.set('scanned_code', pendingScannedCode);
+    if (mediaStream) stopCamera();
+    window.location.assign(target.href);
+  });
+
+  async function processScannedData(data, fromCamera = false) {
+    if (!data || unknownDialog.open) return;
+    if (fromCamera) {
+      if (!data.found || data.code !== dismissedCameraCode) dismissedCameraCode = null;
+      if (data.found && data.code === dismissedCameraCode) return;
+    }
 
     if (data.found) {
       const now = Date.now();
-      if (data.code === lastScannedCode && (now - lastScannedTime) < SCAN_COOLDOWN_MS) {
+      if (fromCamera && data.code === lastScannedCode && (now - lastScannedTime) < SCAN_COOLDOWN_MS) {
         return;
       }
       lastScannedCode = data.code;
@@ -113,14 +150,13 @@ document.addEventListener('DOMContentLoaded', () => {
         displayProduct(data.product, data.code_type);
         showMessage(`Đã nhận diện: ${data.product.name} (Serial: ${data.code})`, false);
       } else {
-        clearProduct(`Mã "${data.code}" không thuộc sản phẩm nào.`);
-        showMessage(`Phát hiện mã ${data.code} nhưng không có trong cơ sở dữ liệu.`, true);
+        showUnknownProduct(data.code);
       }
     }
   }
 
   async function captureAndScanFrame() {
-    if (!mediaStream || isSendingFrame || video.readyState < 2) return;
+    if (!mediaStream || isSendingFrame || unknownDialog.open || video.readyState < 2) return;
 
     const width = video.videoWidth;
     const height = video.videoHeight;
@@ -143,9 +179,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await response.json();
-      await processScannedData(data);
+      if (!mediaStream) return;
+      if (!response.ok && response.status !== 404) {
+        showMessage(data.error || 'Không thể tra cứu sản phẩm. Vui lòng thử lại.', true);
+        return;
+      }
+      await processScannedData(data, true);
 
-      if (mediaStream) {
+      if (mediaStream && !unknownDialog.open) {
         camStatus.textContent = `● Camera đang quét (Đã xử lý ${scannedFrameCount} khung hình)…`;
       }
     } catch (err) {
@@ -243,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Stop camera if running when an image is uploaded
       if (mediaStream) stopCamera();
 
-      showMessage('Đang đọc và phân tích ảnh mã đã chọn…', false);
+
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64Data = e.target.result;
@@ -266,13 +307,10 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           const data = await response.json();
 
-          if (data.found && data.matched && data.product) {
-            playBeep();
-            displayProduct(data.product, data.code_type);
-            showMessage(`Đã nhận diện từ ảnh "${file.name}": ${data.product.name} (Serial: ${data.code})`, false);
+          if (!response.ok && response.status !== 404) {
+            showMessage(data.error || 'Không thể tra cứu sản phẩm. Vui lòng thử lại.', true);
           } else if (data.found) {
-            clearProduct(`Mã "${data.code}" không có trong CSDL.`);
-            showMessage(`Tìm thấy mã ${data.code} nhưng không thuộc sản phẩm nào trong CSDL.`, true);
+            await processScannedData(data);
           } else {
             clearProduct('Không phát hiện mã trong ảnh.');
             showMessage('Không tìm thấy mã Barcode hoặc QR trong ảnh đã tải lên.', true);
@@ -310,6 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
         displayProduct(data.product, 'Tra cứu');
         showMessage(`Tìm thấy: ${data.product.name} (Mã: ${code})`, false);
         lookupInput.select();
+      } else if (response.status === 404 && data.found === false && data.code === code) {
+        showUnknownProduct(code);
       } else {
         clearProduct(`Không tìm thấy mã "${code}"`);
         showMessage(data.error || `Không tìm thấy sản phẩm có mã "${code}".`, true);

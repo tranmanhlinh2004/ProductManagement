@@ -51,14 +51,16 @@ const jsonResponse = (data, status = 200) => ({
   json: async () => data
 });
 
-async function openPage(fetchImpl) {
+async function openPage(fetchImpl, pageUrl = 'http://127.0.0.1:5500/frontend/sources/products.html') {
   const elements = new Map();
   const calls = [];
   const codeUrls = [];
   const revokedUrls = [];
+  const historyUrls = [];
   let start;
   const document = {
     getElementById(id) {
+      if (id === 'prod-sku') return null;
       if (!elements.has(id)) elements.set(id, new Element());
       return elements.get(id);
     },
@@ -67,26 +69,30 @@ async function openPage(fetchImpl) {
   };
   vm.runInNewContext(source, {
     document, Intl, TypeError, AbortController,
-    URL: {
+    window: {
+      location: { href: pageUrl },
+      history: { replaceState: (_, __, url) => historyUrls.push(url) }
+    },
+    URL: Object.assign(class extends URL {}, {
       createObjectURL: blob => {
         const url = `blob:code-${codeUrls.length + 1}`;
         codeUrls.push({ url, blob });
         return url;
       },
       revokeObjectURL: url => revokedUrls.push(url)
-    },
+    }),
     fetch: async (path, options) => {
       calls.push({ path, options });
       return fetchImpl(new URL(path).pathname, options);
     }
   });
   document.getElementById('product-form').reset = () => {
-    for (const id of ['prod-sku', 'prod-name', 'prod-category']) document.getElementById(id).value = '';
+    for (const id of ['prod-name', 'prod-category']) document.getElementById(id).value = '';
     document.getElementById('prod-quantity').value = '0';
   };
   start();
   await new Promise(resolve => setImmediate(resolve));
-  return { get: id => document.getElementById(id), calls, codeUrls, revokedUrls };
+  return { get: id => document.getElementById(id), calls, codeUrls, revokedUrls, historyUrls };
 }
 
 test('loads API data, renders literal database text and preserves serial zeros', async () => {
@@ -217,11 +223,11 @@ test('dialog opens on add, cancels and resets a discarded form', async () => {
   assert.equal(page.get('btn-add-product').disabled, false);
   await page.get('btn-add-product').fire('click');
   assert.equal(page.get('product-dialog').open, true);
-  page.get('prod-sku').value = 'DISCARDED';
+  page.get('prod-name').value = 'DISCARDED';
   await page.get('btn-cancel-product').fire('click');
   assert.equal(page.get('product-dialog').open, false);
   await page.get('btn-add-product').fire('click');
-  assert.equal(page.get('prod-sku').value, '');
+  assert.equal(page.get('prod-name').value, '');
   assert.equal(page.get('prod-quantity').value, '0');
   await page.get('btn-close-product').fire('click');
   assert.equal(page.get('product-dialog').open, false);
@@ -229,36 +235,35 @@ test('dialog opens on add, cancels and resets a discarded form', async () => {
 });
 
 test('saving sends the modal fields and displays the created product on the first page', async () => {
-  const created = product({ id: 99, sku: 'NEW', name: 'Hàng mới', quantity: 7 });
+  const created = product({ id: 99, sku: 'SP0099', name: 'Hàng mới', quantity: 7 });
   const page = await openPage((path, options) => jsonResponse(options.method === 'POST'
     ? created : path === '/api/products' ? Array.from({ length: 11 }, () => product()) : [{ id: 2, name: 'Đồ uống' }],
     options.method === 'POST' ? 201 : 200));
   await page.get('btn-next-page').fire('click');
   await page.get('btn-add-product').fire('click');
-  page.get('prod-sku').value = 'NEW';
   page.get('prod-name').value = 'Hàng mới';
   page.get('prod-category').value = '2';
   page.get('prod-quantity').value = '7';
   await page.get('product-form').fire('submit');
-  assert.deepEqual(JSON.parse(page.calls[2].options.body), { sku: 'NEW', name: 'Hàng mới', category_id: 2, quantity: 7 });
+  assert.deepEqual(JSON.parse(page.calls[2].options.body), { name: 'Hàng mới', category_id: 2, quantity: 7 });
   assert.equal(page.calls[2].options.method, 'POST');
   assert.equal(page.get('product-dialog').open, false);
   assert.equal(page.get('product-page').textContent, 'Trang 1 / 2');
   assert.equal(page.get('products-tbody').children.length, 10);
-  assert.equal(page.get('products-tbody').children[0].children[0].textContent, 'NEW');
-  assert.match(page.get('message').textContent, /00123456/);
+  assert.equal(page.get('products-tbody').children[0].children[0].textContent, 'SP0099');
+  assert.equal(page.get('products-tbody').children[0].children[4].textContent, '00123456');
 });
 
 test('failed save keeps the dialog and entered values for correction', async () => {
   const page = await openPage((path, options) => options.method === 'POST'
-    ? jsonResponse({ error: 'SKU đã tồn tại.' }, 409)
+    ? jsonResponse({ error: 'Danh mục đã ngừng hoạt động.' }, 400)
     : jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]));
   await page.get('btn-add-product').fire('click');
-  page.get('prod-sku').value = 'DUP';
+  page.get('prod-name').value = 'Hàng mới';
   await page.get('product-form').fire('submit');
   assert.equal(page.get('product-dialog').open, true);
-  assert.equal(page.get('prod-sku').value, 'DUP');
-  assert.match(page.get('product-form-message').textContent, /SKU đã tồn tại/);
+  assert.equal(page.get('prod-name').value, 'Hàng mới');
+  assert.match(page.get('product-form-message').textContent, /Danh mục đã ngừng hoạt động/);
   assert.equal(page.get('product-form-message').classList.contains('error'), true);
   assert.equal(page.get('btn-submit-product').disabled, false);
   assert.equal(page.get('product-fields').disabled, false);
@@ -285,6 +290,62 @@ test('adding is unavailable when there are no active categories', async () => {
   const page = await openPage(() => jsonResponse([]));
   assert.equal(page.get('btn-add-product').disabled, true);
   assert.match(page.get('message').textContent, /Chưa có danh mục/);
+});
+
+test('scanner navigation opens the add form and saves the original code with generated identifiers', async () => {
+  const code = '0000123456789/đồ uống?x=1&v=+';
+  const page = await openPage((path, options) => jsonResponse(options.method === 'POST'
+    ? product({ scanned_code: code }) : path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]),
+  `http://127.0.0.1:8080/sources/products.html?scanned_code=${encodeURIComponent(code)}`);
+  assert.equal(page.get('product-dialog').open, true);
+  assert.equal(page.get('prod-scanned-code-field').hidden, false);
+  assert.equal(page.get('prod-scanned-code').value, code);
+  assert.equal(new URL(page.historyUrls[0]).searchParams.has('scanned_code'), false);
+  page.get('prod-name').value = 'Hàng mới';
+  page.get('prod-category').value = '2';
+  await page.get('product-form').fire('submit');
+  assert.deepEqual(JSON.parse(page.calls[2].options.body), {
+    name: 'Hàng mới', category_id: 2, quantity: 0, scanned_code: code
+  });
+  assert.equal(page.get('product-dialog').open, false);
+  page.get('product-search').value = code;
+  await page.get('product-search').fire('input');
+  assert.equal(page.get('products-tbody').children.length, 1);
+  await page.get('btn-add-product').fire('click');
+  assert.equal(page.get('prod-scanned-code').value, '');
+  assert.equal(page.get('prod-scanned-code-field').hidden, true);
+});
+
+test('a scanner draft waits for categories and survives a failed initial load', async () => {
+  let failed = true;
+  const page = await openPage(path => failed
+    ? jsonResponse({ error: 'Database tạm ngừng.' }, 503)
+    : jsonResponse(path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]),
+  'http://127.0.0.1:8080/sources/products.html?scanned_code=00000123');
+  assert.equal(page.get('product-dialog').open, false);
+  failed = false;
+  await page.get('btn-refresh').fire('click');
+  assert.equal(page.get('product-dialog').open, true);
+  assert.equal(page.get('prod-scanned-code').value, '00000123');
+  assert.equal(page.get('prod-serial').value, '00000123');
+});
+
+test('numeric barcode fills Serial and the saved row keeps all digits including leading zeros', async () => {
+  const code = '0000012345678';
+  const page = await openPage((path, options) => jsonResponse(options.method === 'POST'
+    ? product({ product_serial: code, scanned_code: code })
+    : path === '/api/products' ? [] : [{ id: 2, name: 'Đồ uống' }]),
+  `http://127.0.0.1:8080/sources/products.html?scanned_code=${code}`);
+  assert.equal(page.get('product-dialog').open, true);
+  assert.equal(page.get('prod-serial').value, code);
+  assert.equal(page.get('prod-scanned-code-field').hidden, true);
+  page.get('prod-name').value = 'Sản phẩm mã vạch';
+  page.get('prod-category').value = '2';
+  await page.get('product-form').fire('submit');
+  assert.equal(JSON.parse(page.calls[2].options.body).scanned_code, code);
+  assert.equal(page.get('products-tbody').children[0].children[4].textContent, code);
+  await page.get('btn-add-product').fire('click');
+  assert.equal(page.get('prod-serial').value, '');
 });
 
 const pngResponse = (label = 'image') => ({

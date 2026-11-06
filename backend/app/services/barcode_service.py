@@ -26,15 +26,15 @@ def generate_png(serial, code_type):
     if code_type not in CODE_TYPES:
         raise InvalidProductError("Loại mã phải là QR-code hoặc barcode.")
 
-    # Serial phải là chuỗi gồm đúng 8 chữ số từ 0 đến 9.
+    # Giữ cả serial tự sinh và dãy số được lấy từ mã vạch bên ngoài.
     valid_serial = (
         isinstance(serial, str)
-        and len(serial) == 8
+        and 1 <= len(serial) <= 100
         and serial.isascii()
         and serial.isdigit()
     )
     if not valid_serial:
-        raise InvalidProductError("Sản phẩm phải có Serial gồm đúng 8 chữ số để tạo mã.")
+        raise InvalidProductError("Sản phẩm phải có Serial gồm 1–100 chữ số để tạo mã.")
 
     output = BytesIO()
 

@@ -3,13 +3,13 @@ from contextlib import closing
 import pyodbc
 
 from app.db import get_db
-from app.errors import DuplicateProductError, InvalidProductError
+from app.errors import InvalidProductError
 
 
 PRODUCT_SELECT = """
     SELECT p.id, p.sku, p.name, p.category_id, c.name AS category,
            p.unit, p.sale_price, p.product_serial, p.[type], p.is_active,
-           COALESCE(i.quantity, 0) AS quantity
+           COALESCE(i.quantity, 0) AS quantity, p.scanned_code
     FROM dbo.products AS p
     INNER JOIN dbo.categories AS c ON c.id = p.category_id
     LEFT JOIN dbo.inventory AS i ON i.product_id = p.id
@@ -60,8 +60,8 @@ def get_product_code_data(product_id):
 def find_by_code(code):
     with closing(get_db().cursor()) as cursor:
         cursor.execute(
-            PRODUCT_SELECT + " WHERE (p.product_serial = ? OR p.sku = ?) AND p.is_active = 1",
-            code, code,
+            PRODUCT_SELECT + " WHERE (p.product_serial = ? OR p.sku = ? OR p.scanned_code = ?) AND p.is_active = 1",
+            code, code, code,
         )
         row = cursor.fetchone()
         if row is None:
@@ -69,22 +69,53 @@ def find_by_code(code):
         return dict(zip((column[0] for column in cursor.description), row))
 
 
-def create_product(sku, name, category_id, quantity):
-    """Save product and initial stock atomically, retrying random serial collisions."""
+def create_product(name, category_id, quantity, scanned_code=None, product_serial=None):
+    """Keep a scanned numeric serial, generate other identifiers and save stock atomically."""
     connection = get_db()
     with closing(connection.cursor()) as cursor:
         for attempt in range(5):
             try:
+                if scanned_code is not None:
+                    cursor.execute(
+                        """
+                        SELECT id FROM dbo.products WITH (UPDLOCK, HOLDLOCK)
+                        WHERE product_serial = ? OR sku = ? OR scanned_code = ?
+                        """,
+                        scanned_code, scanned_code, scanned_code,
+                    )
+                    if cursor.fetchone() is not None:
+                        raise InvalidProductError("Mã vừa quét đã được sử dụng cho một sản phẩm. Vui lòng tra cứu lại.")
                 # An inactive or missing category cannot receive a new product.
-                cursor.execute(
-                    """
-                    INSERT INTO dbo.products (sku, name, category_id)
-                    OUTPUT INSERTED.id
-                    SELECT ?, ?, c.id FROM dbo.categories AS c
-                    WHERE c.id = ? AND c.is_active = 1
-                    """,
-                    sku, name, category_id,
-                )
+                if product_serial is not None:
+                    cursor.execute(
+                        """
+                        INSERT INTO dbo.products (name, category_id, scanned_code, product_serial)
+                        OUTPUT INSERTED.id
+                        SELECT ?, c.id, ?, ? FROM dbo.categories AS c
+                        WHERE c.id = ? AND c.is_active = 1
+                        """,
+                        name, scanned_code, product_serial, category_id,
+                    )
+                elif scanned_code is None:
+                    cursor.execute(
+                        """
+                        INSERT INTO dbo.products (name, category_id)
+                        OUTPUT INSERTED.id
+                        SELECT ?, c.id FROM dbo.categories AS c
+                        WHERE c.id = ? AND c.is_active = 1
+                        """,
+                        name, category_id,
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO dbo.products (name, category_id, scanned_code)
+                        OUTPUT INSERTED.id
+                        SELECT ?, c.id, ? FROM dbo.categories AS c
+                        WHERE c.id = ? AND c.is_active = 1
+                        """,
+                        name, scanned_code, category_id,
+                    )
                 row = cursor.fetchone()
                 if row is None:
                     raise InvalidProductError("Danh mục không tồn tại hoặc đã ngừng hoạt động.")
@@ -102,9 +133,10 @@ def create_product(sku, name, category_id, quantity):
                 connection.rollback()
                 if not any(code in str(error) for code in ("2601", "2627")):
                     raise
-                cursor.execute("SELECT id FROM dbo.products WHERE sku = ?", sku)
-                if cursor.fetchone() is not None:
-                    raise DuplicateProductError("SKU đã tồn tại. Vui lòng nhập SKU khác.") from None
+                if ("IX_products_scanned_code" in str(error)
+                        or product_serial is not None and "IX_products_product_serial" in str(error)):
+                    raise InvalidProductError("Mã vừa quét đã được sử dụng cho một sản phẩm. Vui lòng tra cứu lại.") from error
+                # Retry generated identifier collisions without replacing a scanned serial.
                 if attempt == 4:
                     raise
             except Exception:
