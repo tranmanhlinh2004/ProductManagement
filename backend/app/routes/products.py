@@ -18,7 +18,7 @@ def configure_response_headers(response):
     origin = request.headers.get("Origin", "")
     if re.fullmatch(r"http://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", origin):
         response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     response.vary.add("Origin")
     return response
@@ -34,6 +34,19 @@ def create_product():
     if not request.is_json:
         raise InvalidProductError("Yêu cầu phải có định dạng JSON.")
     return jsonify(product_service.create_product(request.get_json(silent=True))), 201
+
+
+@products_api.put("/products/<int:product_id>")
+def update_product(product_id):
+    if not request.is_json:
+        raise InvalidProductError("Yêu cầu phải có định dạng JSON.")
+    return jsonify(product_service.update_product(product_id, request.get_json(silent=True)))
+
+
+@products_api.delete("/products/<int:product_id>")
+def delete_product(product_id):
+    product_service.delete_product(product_id)
+    return jsonify(message="Đã xóa sản phẩm.")
 
 
 @products_api.get("/categories")

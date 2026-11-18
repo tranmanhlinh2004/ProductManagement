@@ -327,6 +327,123 @@ class ProductApiTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertNotIn("Access-Control-Allow-Origin", response.headers)
 
+    def put_product(self, **overrides):
+        return self.client.put("/api/products/99", json={
+            "name": "Sản phẩm mới", "category_id": 2, "quantity": 7,
+            **overrides,
+        }, headers={"Origin": "http://localhost:5500"})
+
+    def test_update_saves_details_and_inventory_in_one_transaction(self):
+        self.cursor.fetchone.side_effect = [(99,), (99,), self.created_row()]
+        self.cursor.rowcount = 1
+        response = self.put_product(name="  Sản phẩm mới  ")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["quantity"], 7)
+        self.assertEqual(response.get_json()["sku"], "SP0099")
+        self.assertEqual(response.get_json()["product_serial"], "00123456")
+        calls = self.cursor.execute.call_args_list
+        self.assertIn("UPDLOCK, HOLDLOCK", calls[0].args[0])
+        self.assertEqual(calls[1].args[1:], ("Sản phẩm mới", 2, 99))
+        self.assertEqual(calls[2].args[1:], (7, 99))
+        self.connection.commit.assert_called_once()
+        self.connection.rollback.assert_not_called()
+        self.cursor.close.assert_called_once()
+        self.assertEqual(response.headers["Access-Control-Allow-Origin"], "http://localhost:5500")
+
+    def test_update_creates_missing_inventory(self):
+        self.cursor.fetchone.side_effect = [(99,), (99,), self.created_row()]
+        self.cursor.rowcount = 0
+        response = self.put_product()
+        self.assertEqual(response.status_code, 200)
+        insert = self.cursor.execute.call_args_list[3]
+        self.assertIn("INSERT INTO dbo.inventory", insert.args[0])
+        self.assertEqual(insert.args[1:], (99, 7))
+        self.connection.commit.assert_called_once()
+
+    def test_invalid_update_never_opens_database(self):
+        for overrides in (
+            {"name": " "}, {"name": "A" * 201}, {"name": 3},
+            {"category_id": 0}, {"category_id": True}, {"category_id": "2"},
+            {"category_id": 2147483648}, {"quantity": None}, {"quantity": True},
+            {"quantity": -1}, {"quantity": 1.5}, {"quantity": 2147483648},
+            {"sku": "NEW"}, {"product_serial": "123"}, {"scanned_code": "123"},
+            {"type": "barcode"}, {"is_active": False},
+        ):
+            with self.subTest(overrides=overrides):
+                self.assertEqual(self.put_product(**overrides).status_code, 400)
+        for body in ("null", "[]", "{invalid", '{"name":"Test","category_id":2}'):
+            with self.subTest(body=body):
+                response = self.client.put("/api/products/99", data=body, content_type="application/json")
+                self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.client.put("/api/products/99", data="text").status_code, 400)
+        self.get_db.assert_not_called()
+
+    def test_missing_product_cannot_be_updated_or_deleted(self):
+        self.cursor.fetchone.return_value = None
+        for method in ("PUT", "DELETE"):
+            with self.subTest(method=method):
+                self.connection.reset_mock()
+                response = self.client.open("/api/products/99", method=method, json={
+                    "name": "Test", "category_id": 2, "quantity": 7,
+                })
+                self.assertEqual(response.status_code, 404)
+                self.assertIn("không tồn tại", response.get_json()["error"])
+                self.connection.commit.assert_not_called()
+                self.connection.rollback.assert_called_once()
+                self.cursor.close.assert_called_once()
+
+    def test_update_rejects_unavailable_category_and_rolls_back(self):
+        self.cursor.fetchone.side_effect = [(99,), None]
+        response = self.put_product(category_id=3)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.cursor.execute.call_count, 2)
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once()
+
+    def test_inventory_failure_rolls_back_product_changes(self):
+        self.cursor.fetchone.side_effect = [(99,), (99,)]
+        self.cursor.execute.side_effect = [None, None, pyodbc.Error("42000", "private-inventory-error")]
+        with self.assertLogs(self.app.logger, level="ERROR"):
+            response = self.put_product()
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("private-", response.get_data(as_text=True))
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once()
+
+    def test_delete_deactivates_product_and_preserves_inventory(self):
+        self.cursor.fetchone.return_value = (99,)
+        response = self.client.delete("/api/products/99")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Đã xóa", response.get_json()["message"])
+        self.assertEqual(self.cursor.execute.call_count, 1)
+        query, product_id = self.cursor.execute.call_args.args
+        self.assertIn("SET is_active = 0", query)
+        self.assertEqual(product_id, 99)
+        self.connection.commit.assert_called_once()
+        self.connection.rollback.assert_not_called()
+
+    def test_failed_delete_rolls_back_and_returns_safe_json(self):
+        self.cursor.execute.side_effect = pyodbc.Error("42000", "private-delete-error")
+        with self.assertLogs(self.app.logger, level="ERROR"):
+            response = self.client.delete("/api/products/99")
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("private-", response.get_data(as_text=True))
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once()
+
+    def test_live_server_can_preflight_updates_and_deletes(self):
+        for method in ("PUT", "DELETE"):
+            with self.subTest(method=method):
+                response = self.client.options("/api/products/99", headers={
+                    "Origin": "http://localhost:5500",
+                    "Access-Control-Request-Method": method,
+                    "Access-Control-Request-Headers": "content-type",
+                })
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(method, response.headers["Access-Control-Allow-Methods"])
+                self.assertIn("Content-Type", response.headers["Access-Control-Allow-Headers"])
+        self.get_db.assert_not_called()
+
     def test_flask_serves_frontend_and_assets_without_database(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 302)

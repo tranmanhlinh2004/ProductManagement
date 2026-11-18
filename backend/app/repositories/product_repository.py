@@ -3,7 +3,7 @@ from contextlib import closing
 import pyodbc
 
 from app.db import get_db
-from app.errors import InvalidProductError
+from app.errors import InvalidProductError, ProductNotFoundError
 
 
 PRODUCT_SELECT = """
@@ -142,3 +142,69 @@ def create_product(name, category_id, quantity, scanned_code=None, product_seria
             except Exception:
                 connection.rollback()
                 raise
+
+
+def update_product(product_id, name, category_id, quantity):
+    """Save product details and stock together, keeping its identifiers intact."""
+    connection = get_db()
+    with closing(connection.cursor()) as cursor:
+        try:
+            cursor.execute(
+                "SELECT id FROM dbo.products WITH (UPDLOCK, HOLDLOCK) WHERE id = ? AND is_active = 1",
+                product_id,
+            )
+            if cursor.fetchone() is None:
+                raise ProductNotFoundError("Sản phẩm không tồn tại hoặc đã bị xóa.")
+            # An existing inactive category may be kept, but cannot be newly assigned.
+            cursor.execute(
+                """
+                UPDATE p SET name = ?, category_id = c.id, updated_at = GETDATE()
+                OUTPUT INSERTED.id
+                FROM dbo.products AS p
+                INNER JOIN dbo.categories AS c ON c.id = ?
+                WHERE p.id = ? AND p.is_active = 1
+                  AND (c.is_active = 1 OR p.category_id = c.id)
+                """,
+                name, category_id, product_id,
+            )
+            if cursor.fetchone() is None:
+                raise InvalidProductError("Danh mục không tồn tại hoặc đã ngừng hoạt động.")
+            cursor.execute(
+                """
+                UPDATE dbo.inventory WITH (UPDLOCK, HOLDLOCK)
+                SET quantity = ?, updated_at = GETDATE() WHERE product_id = ?
+                """,
+                quantity, product_id,
+            )
+            if cursor.rowcount == 0:
+                cursor.execute(
+                    "INSERT INTO dbo.inventory (product_id, quantity) VALUES (?, ?)",
+                    product_id, quantity,
+                )
+            cursor.execute(PRODUCT_SELECT + " WHERE p.id = ?", product_id)
+            product = dict(zip((column[0] for column in cursor.description), cursor.fetchone()))
+            connection.commit()
+            return product
+        except Exception:
+            connection.rollback()
+            raise
+
+
+def delete_product(product_id):
+    """Deactivate a product while retaining its inventory and reserved identifiers."""
+    connection = get_db()
+    with closing(connection.cursor()) as cursor:
+        try:
+            cursor.execute(
+                """
+                UPDATE dbo.products SET is_active = 0, updated_at = GETDATE()
+                OUTPUT INSERTED.id WHERE id = ? AND is_active = 1
+                """,
+                product_id,
+            )
+            if cursor.fetchone() is None:
+                raise ProductNotFoundError("Sản phẩm không tồn tại hoặc đã bị xóa.")
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise

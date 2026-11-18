@@ -198,6 +198,80 @@ class ProductSchemaTests(unittest.TestCase):
                     self.assertEqual(scanned.get_json()["product"]["id"], product["id"])
                     self.assertEqual(client.post("/api/products", json=payload).status_code, 400)
 
+    def test_product_edit_delete_lifecycle_preserves_codes_and_inventory(self):
+        self.run_script("SQLQuery1.sql")
+        category = self.cursor.execute(
+            "INSERT INTO dbo.categories (name) OUTPUT INSERTED.id VALUES (N'CRUD category')"
+        ).fetchone()[0]
+        app = create_app({"TESTING": True, "DB_NAME": self.database})
+        with app.test_client() as client:
+            created = client.post("/api/products", json={
+                "name": "Sản phẩm mới", "category_id": category, "quantity": 7,
+                "scanned_code": "001234567890",
+            })
+            self.assertEqual(created.status_code, 201, created.get_json())
+            product = created.get_json()
+            path = f"/api/products/{product['id']}"
+            updated = client.put(path, json={
+                "name": "Sản phẩm đã sửa", "category_id": category, "quantity": 14,
+            })
+            self.assertEqual(updated.status_code, 200, updated.get_json())
+            result = updated.get_json()
+            self.assertEqual(result["name"], "Sản phẩm đã sửa")
+            self.assertEqual(result["quantity"], 14)
+            for key in ("sku", "product_serial", "scanned_code", "type"):
+                self.assertEqual(result[key], product[key])
+            lookup = client.post("/api/scanner/lookup", json={"code": product["scanned_code"]})
+            self.assertEqual(lookup.get_json()["product"]["quantity"], 14)
+            self.assertEqual(client.delete(path).status_code, 200)
+            self.assertEqual(client.get("/api/products").get_json(), [])
+            self.assertEqual(client.post("/api/scanner/lookup", json={"code": product["sku"]}).status_code, 404)
+            self.assertEqual(client.get(path + "/code").status_code, 404)
+            self.assertEqual(self.cursor.execute(
+                "SELECT quantity FROM dbo.inventory WHERE product_id = ?", product["id"]
+            ).fetchone()[0], 14)
+            self.assertEqual(self.cursor.execute(
+                "SELECT is_active FROM dbo.products WHERE id = ?", product["id"]
+            ).fetchone()[0], 0)
+            self.assertEqual(client.put(path, json={
+                "name": "Deleted", "category_id": category, "quantity": 1,
+            }).status_code, 404)
+            self.assertEqual(client.delete(path).status_code, 404)
+            self.assertEqual(client.post("/api/products", json={
+                "name": "Duplicate", "category_id": category, "scanned_code": product["scanned_code"],
+            }).status_code, 400)
+
+    def test_edit_handles_inactive_categories_and_missing_inventory(self):
+        self.run_script("SQLQuery1.sql")
+        category = self.cursor.execute(
+            "INSERT INTO dbo.categories (name) OUTPUT INSERTED.id VALUES (N'Original')"
+        ).fetchone()[0]
+        other = self.cursor.execute(
+            "INSERT INTO dbo.categories (name) OUTPUT INSERTED.id VALUES (N'Other')"
+        ).fetchone()[0]
+        product_id = self.cursor.execute(
+            "INSERT INTO dbo.products (name,category_id) OUTPUT INSERTED.id VALUES (N'No inventory', ?)",
+            category,
+        ).fetchone()[0]
+        self.cursor.execute("UPDATE dbo.categories SET is_active=0")
+        app = create_app({"TESTING": True, "DB_NAME": self.database})
+        with app.test_client() as client:
+            path = f"/api/products/{product_id}"
+            updated = client.put(path, json={"name": "Updated", "category_id": category, "quantity": 5})
+            self.assertEqual(updated.status_code, 200, updated.get_json())
+            self.assertEqual(updated.get_json()["quantity"], 5)
+            rejected = client.put(path, json={"name": "Rejected", "category_id": other, "quantity": 9})
+            self.assertEqual(rejected.status_code, 400, rejected.get_json())
+            stored = client.get("/api/products").get_json()[0]
+            self.assertEqual(stored["name"], "Updated")
+            self.assertEqual(stored["category_id"], category)
+            self.assertEqual(stored["quantity"], 5)
+            self.cursor.execute("UPDATE dbo.categories SET is_active=1 WHERE id=?", other)
+            moved = client.put(path, json={"name": "Moved", "category_id": other, "quantity": 0})
+            self.assertEqual(moved.status_code, 200, moved.get_json())
+            self.assertEqual(moved.get_json()["category_id"], other)
+            self.assertEqual(moved.get_json()["quantity"], 0)
+
     def test_concurrent_creates_receive_distinct_increasing_skus(self):
         self.run_script("SQLQuery1.sql")
         category = self.cursor.execute(

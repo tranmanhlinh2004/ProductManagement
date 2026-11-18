@@ -27,7 +27,6 @@ def _extract_image_bytes(data: Any) -> Optional[bytes]:
 
 
 def decode_image(image_data: Any) -> Optional[Dict[str, Any]]:
-    """Detect and decode Barcode (1D) or QR-Code (2D) using a robust multi-stage Computer Vision pipeline."""
     raw_bytes = _extract_image_bytes(image_data)
     if not raw_bytes:
         return None
@@ -126,7 +125,7 @@ def decode_image(image_data: Any) -> Optional[Dict[str, Any]]:
                 "polygon": polygon,
             }
 
-    # Fallback: OpenCV QRCodeDetector specifically for QR codes
+   
     detector = cv2.QRCodeDetector()
     for cand in (gray, enhanced, otsu):
         val, points, _ = detector.detectAndDecode(cand)

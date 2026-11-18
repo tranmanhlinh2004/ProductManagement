@@ -3,7 +3,7 @@ from app.repositories import product_repository
 
 
 def _serialize(product):
-    # Preserve SQL Server DECIMAL(18, 2) without converting through float.
+    
     product["sale_price"] = str(product["sale_price"])
     product["is_active"] = bool(product["is_active"])
     return product
@@ -13,20 +13,25 @@ def list_products():
     return [_serialize(product) for product in product_repository.list_products()]
 
 
-def create_product(data):
+def _validate_product_details(data, *, creating):
     if not isinstance(data, dict):
         raise InvalidProductError("Thông tin sản phẩm phải là một đối tượng JSON.")
     if "sku" in data:
-        raise InvalidProductError("SKU được hệ thống tạo tự động. Không gửi SKU khi thêm sản phẩm.")
+        raise InvalidProductError("SKU được hệ thống tạo tự động và không thể thay đổi.")
     name = data.get("name")
     if not isinstance(name, str) or not 1 <= len(name.strip().encode("utf-16-le")) // 2 <= 200:
         raise InvalidProductError("Tên sản phẩm phải gồm 1–200 ký tự.")
     category_id = data.get("category_id")
-    quantity = data.get("quantity", 0)
+    quantity = data.get("quantity", 0 if creating else None)
     if type(category_id) is not int or not 1 <= category_id <= 2147483647:
         raise InvalidProductError("Vui lòng chọn danh mục hợp lệ.")
     if type(quantity) is not int or not 0 <= quantity <= 2147483647:
         raise InvalidProductError("Số lượng trong kho phải là số nguyên từ 0 đến 2147483647.")
+    return name.strip(), category_id, quantity
+
+
+def create_product(data):
+    name, category_id, quantity = _validate_product_details(data, creating=True)
     scanned_code = data.get("scanned_code")
     if scanned_code is not None:
         if (not isinstance(scanned_code, str)
@@ -40,9 +45,20 @@ def create_product(data):
             raise InvalidProductError("Serial từ mã vạch phải gồm 1–100 chữ số.")
         product_serial = scanned_code
     return _serialize(product_repository.create_product(
-        name.strip(), category_id, quantity, scanned_code=scanned_code,
+        name, category_id, quantity, scanned_code=scanned_code,
         product_serial=product_serial
     ))
+
+
+def update_product(product_id, data):
+    name, category_id, quantity = _validate_product_details(data, creating=False)
+    if any(field in data for field in ("product_serial", "scanned_code", "type", "is_active")):
+        raise InvalidProductError("Không thể thay đổi mã nhận diện hoặc trạng thái khi sửa sản phẩm.")
+    return _serialize(product_repository.update_product(product_id, name, category_id, quantity))
+
+
+def delete_product(product_id):
+    product_repository.delete_product(product_id)
 
 
 def list_categories():
