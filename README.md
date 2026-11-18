@@ -87,7 +87,7 @@ python -m pip --version
 ### Bước 2: Tạo cơ sở dữ liệu
 
 1. Mở SSMS và kết nối đến SQL Server sẽ dùng cho ứng dụng.
-2. Mở [database/QLSP.sql], chọn **Execute** hoặc nhấn `F5` để tạo database `QLSP`, các bảng và chỉ mục.
+2. Xóa database cũ và mở [database/QLSP.sql], chọn **Execute** hoặc nhấn `F5` để tạo database `QLSP`, các bảng và chỉ mục.
 3. Nếu cần dữ liệu để chạy thử, mở và chạy [database/SQLQuery2.sql](database/SQLQuery2.sql). Script tạo 50 sản phẩm mẫu cùng danh mục, tồn kho và dữ liệu liên quan.
 
 Hai script này dành cho database mới; script dữ liệu mẫu yêu cầu các bảng đang rỗng. Ứng dụng cần có danh mục đang hoạt động trong bảng `categories` để thêm sản phẩm qua giao diện. Có thể tạo danh mục bằng SQL nếu không dùng dữ liệu mẫu.
