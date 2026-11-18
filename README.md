@@ -7,6 +7,8 @@ ProductManagement là ứng dụng web hỗ trợ quản lý thông tin sản ph
 - **Xem danh sách sản phẩm:** hiển thị SKU, tên sản phẩm, danh mục, số lượng tồn kho và serial; phân trang tối đa 10 sản phẩm mỗi trang.
 - **Tìm kiếm sản phẩm:** lọc danh sách theo tên, SKU hoặc serial.
 - **Thêm sản phẩm:** nhập tên, danh mục và tồn kho ban đầu; có thể chọn **Quét mã** ngay trong form. Mã số được giữ nguyên làm Serial, kể cả số 0 ở đầu; mã QR chứa chữ hoặc URL được lưu vào mã nhận diện bổ sung. SQL Server tự cấp SKU tăng dần (`SP0001`, `SP0002`, …) và serial 8 chữ số khi chưa có serial từ mã quét, rồi lưu sản phẩm cùng tồn kho trong một transaction.
+- **Sửa sản phẩm:** chọn **Sửa** trong danh sách để cập nhật tên, danh mục và số lượng tồn kho. SKU, serial và mã đã quét được giữ nguyên; thông tin sản phẩm và tồn kho được lưu trong cùng một transaction.
+- **Xóa sản phẩm:** chọn **Xóa** và xác nhận trong hộp thoại. Sản phẩm được ẩn khỏi danh sách, quét mã và tra cứu; dữ liệu cùng tồn kho vẫn được lưu trong database, mã nhận diện không được cấp lại cho sản phẩm khác.
 - **Tạo mã nhận diện:** xem trước và lưu ảnh PNG dưới dạng QR Code hoặc mã vạch Code128. Cả hai loại mã đều chứa serial của sản phẩm, giữ nguyên các chữ số 0 ở đầu.
 - **Quét mã:** nhận diện mã qua webcam hoặc ảnh tải lên, sau đó tra cứu thông tin sản phẩm và số lượng tồn kho.
 - **Tra cứu trực tiếp:** nhập serial hoặc SKU bằng bàn phím, hoặc dùng máy quét USB nhập mã vào ô tra cứu.
@@ -53,8 +55,7 @@ ProductManagement/
 │   ├── sources/                # Các trang HTML
 │   └── tests/                  # Kiểm thử JavaScript
 ├── database/
-│   ├── migrations/            # Chuyển đổi cơ sở dữ liệu phiên bản cũ
-│   ├── SQLQuery1.sql           # Tạo database, bảng và chỉ mục
+│   ├── QLSP.sql           # Tạo database, bảng và chỉ mục
 │   ├── SQLQuery2.sql           # Tạo dữ liệu mẫu
 │   └── README.md               # Hướng dẫn về schema và migration
 ├── docs/                       # Tài liệu báo cáo của dự án
@@ -86,7 +87,7 @@ python -m pip --version
 ### Bước 2: Tạo cơ sở dữ liệu
 
 1. Mở SSMS và kết nối đến SQL Server sẽ dùng cho ứng dụng.
-2. Mở [database/SQLQuery1.sql](database/SQLQuery1.sql), chọn **Execute** hoặc nhấn `F5` để tạo database `QLSP`, các bảng và chỉ mục.
+2. Mở [database/QLSP.sql], chọn **Execute** hoặc nhấn `F5` để tạo database `QLSP`, các bảng và chỉ mục.
 3. Nếu cần dữ liệu để chạy thử, mở và chạy [database/SQLQuery2.sql](database/SQLQuery2.sql). Script tạo 50 sản phẩm mẫu cùng danh mục, tồn kho và dữ liệu liên quan.
 
 Hai script này dành cho database mới; script dữ liệu mẫu yêu cầu các bảng đang rỗng. Ứng dụng cần có danh mục đang hoạt động trong bảng `categories` để thêm sản phẩm qua giao diện. Có thể tạo danh mục bằng SQL nếu không dùng dữ liệu mẫu.
@@ -96,10 +97,10 @@ Hai script này dành cho database mới; script dữ liệu mẫu yêu cầu c�
 Từ thư mục gốc dự án, chạy:
 
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+1. cd backend
+2. python -m venv .venv
+3. .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+4. if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
 Các lệnh sử dụng trực tiếp Python trong `.venv`, vì vậy không cần kích hoạt môi trường ảo. Danh sách thư viện được khai báo trong [backend/requirements.txt](backend/requirements.txt).
@@ -139,16 +140,3 @@ Sau khi backend đã chạy, mở `frontend/sources/products.html` bằng **Open
 Nếu đổi địa chỉ hoặc cổng backend, cập nhật cấu hình gọi API trong cả [products.js](frontend/assets/js/products.js) và [scanner.js](frontend/assets/js/scanner.js) cho phù hợp.
 
 Dự án cũng có task `ProductManagement: Start backend` trong [.vscode/tasks.json](.vscode/tasks.json). Sau khi đã tạo `.venv` và `.env`, mở thư mục `ProductManagement` bằng VS Code và cho phép **Automatic Tasks** để backend tự khởi động khi mở dự án. Nếu task đã chạy, sử dụng backend đó; có thể dừng hoặc khởi động lại qua **Tasks: Terminate Task** và **Tasks: Restart Running Task** trong Command Palette.
-
-## 5. Sử dụng hệ thống
-
-1. Mở trang **Sản phẩm** để xem danh sách hoặc tìm theo tên, SKU, serial. Nút **Tải lại** lấy dữ liệu hiện tại từ cơ sở dữ liệu.
-2. Chọn **Thêm sản phẩm mới**, nhập tên, danh mục và số lượng tồn kho ban đầu rồi lưu. SKU và serial được tạo tự động; SKU được hiển thị trong danh sách và thông báo lưu thành công.
-3. Chọn **Xem / lưu mã** ở sản phẩm, chọn **Mã QR** hoặc **Mã vạch (Code128)** để xem trước. Nút **Lưu PNG** lưu ảnh trên máy chạy backend vào `img/QR/` hoặc `img/Barcode/`.
-4. Mở **Quét mã bằng webcam**, chọn **Bật webcam** và cấp quyền camera cho trình duyệt. Đưa mã vào khung hình để xem thông tin sản phẩm.
-5. Có thể chọn **Tải ảnh mã lên**, nhập serial/SKU hoặc dùng máy quét USB tại ô **Nhập mã / máy quét USB** rồi thực hiện tra cứu.
-6. Nếu mã chưa có trong cơ sở dữ liệu, hộp thoại hiển thị mã vừa quét cùng hai lựa chọn **Thoát** và **Thêm mới sản phẩm**. Chọn thêm mới để mở form sản phẩm với mã điền sẵn. Dãy số mã vạch được điền vào **Serial** và giữ nguyên khi lưu, kể cả số 0 ở đầu; QR chứa chữ hoặc URL được lưu thành mã nhận diện bổ sung. Sau khi lưu có thể tra cứu bằng chính mã đó. SKU vẫn được cấp tự động. Database hiện có cần chạy [migration 004](database/migrations/004_product_scanned_code.sql) và [migration 005](database/migrations/005_scanned_barcode_serial.sql).
-
-Ảnh được lưu theo tên `product-{id}-{serial}-qr.png` hoặc `product-{id}-{serial}-barcode.png`. Lưu lại cùng sản phẩm và loại mã sẽ cập nhật tệp ảnh tương ứng.
-
-SKU được cấp bằng SQL Server sequence để không trùng khi thêm đồng thời. Database mới bắt đầu từ `SP0001`; migration bắt đầu sau hậu tố số lớn nhất của các SKU `SP…` hiện có. Sau `SP9999` là `SP10000`. Số có thể bị khuyết khi rollback/thử lại hoặc xóa sản phẩm. API thêm sản phẩm nhận `name`, `category_id`, `quantity`, tùy chọn `scanned_code` và từ chối trường `sku` do khách gửi.
