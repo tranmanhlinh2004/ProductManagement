@@ -18,6 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('product-form');
   const fields = document.getElementById('product-fields');
   const formMessage = document.getElementById('product-form-message');
+  const formTitle = document.getElementById('form-title');
+  const formHint = document.getElementById('product-form-hint');
+  const createHint = formHint.textContent;
+  const nameInput = document.getElementById('prod-name');
+  const quantityInput = document.getElementById('prod-quantity');
+  const skuInput = document.getElementById('prod-sku');
+  const serialInput = document.getElementById('prod-serial');
   const scanButton = document.getElementById('btn-scan-product');
   const scanDialog = document.getElementById('product-scan-dialog');
   const scanVideo = document.getElementById('product-scan-video');
@@ -29,6 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const submit = document.getElementById('btn-submit-product');
   const cancel = document.getElementById('btn-cancel-product');
   const close = document.getElementById('btn-close-product');
+  const deleteDialog = document.getElementById('delete-product-dialog');
+  const deleteMessage = document.getElementById('delete-product-message');
+  const deleteConfirm = document.getElementById('btn-confirm-delete-product');
+  const deleteCancel = document.getElementById('btn-cancel-delete-product');
+  const deleteClose = document.getElementById('btn-close-delete-product');
   const codeDialog = document.getElementById('code-dialog');
   const codeType = document.getElementById('code-type');
   const codeImage = document.getElementById('code-image');
@@ -45,6 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let loaded = false;
   let page = 1;
   let saving = false;
+  let editingProduct = null;
+  let formOpener = null;
+  let deletingProduct = null;
+  let deleteOpener = null;
+  let deleting = false;
   let codeProduct = null;
   let codeOpener = null;
   let codeUrl = null;
@@ -291,7 +308,23 @@ document.addEventListener('DOMContentLoaded', () => {
       viewCode.setAttribute('aria-haspopup', 'dialog');
       viewCode.setAttribute('aria-controls', 'code-dialog');
       viewCode.addEventListener('click', () => openProductCode(product, viewCode));
-      actionGroup.append(viewCode);
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'secondary';
+      edit.textContent = 'Sửa';
+      edit.setAttribute('aria-label', `Sửa sản phẩm ${product.name}`);
+      edit.setAttribute('aria-haspopup', 'dialog');
+      edit.setAttribute('aria-controls', 'product-dialog');
+      edit.addEventListener('click', () => openEditProduct(product, edit));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Xóa';
+      remove.setAttribute('aria-label', `Xóa sản phẩm ${product.name}`);
+      remove.setAttribute('aria-haspopup', 'dialog');
+      remove.setAttribute('aria-controls', 'delete-product-dialog');
+      remove.addEventListener('click', () => openDeleteProduct(product, remove));
+      actionGroup.append(viewCode, edit, remove);
       actions.append(actionGroup);
       row.append(actions);
       tbody.append(row);
@@ -376,20 +409,94 @@ document.addEventListener('DOMContentLoaded', () => {
   next.addEventListener('click', () => { page += 1; render(); });
   function setScannedCode(scannedCode) {
     const scannedSerial = /^[0-9]+$/.test(scannedCode) ? scannedCode : '';
-    document.getElementById('prod-serial').value = scannedSerial;
+    serialInput.value = scannedSerial;
     scannedCodeInput.value = scannedCode;
     scannedCodeField.hidden = !scannedCode || !!scannedSerial;
     return scannedSerial ? 'Serial' : 'Mã vừa quét';
   }
   function openProductForm(scannedCode = '') {
+    editingProduct = null;
+    formOpener = add;
     form.reset();
+    categorySelect.querySelector('[data-current-category]')?.remove();
+    formTitle.textContent = 'Thêm sản phẩm mới';
+    formHint.textContent = createHint;
+    submit.textContent = 'Lưu sản phẩm';
+    scanButton.hidden = false;
     setScannedCode(scannedCode);
     showMessage('', false, formMessage);
     dialog.showModal();
   }
+
+  function openEditProduct(product, opener) {
+    openProductForm();
+    editingProduct = product;
+    formOpener = opener;
+    formTitle.textContent = 'Sửa sản phẩm';
+    formHint.textContent = 'Cập nhật tên, danh mục và số lượng trong kho. SKU, serial và mã đã quét được giữ nguyên.';
+    submit.textContent = 'Lưu thay đổi';
+    nameInput.value = product.name;
+    quantityInput.value = product.quantity ?? 0;
+    skuInput.value = product.sku;
+    serialInput.value = product.product_serial || '';
+    scannedCodeInput.value = product.scanned_code || '';
+    scannedCodeField.hidden = !product.scanned_code || product.scanned_code === product.product_serial;
+    scanButton.hidden = true;
+    if (!Array.from(categorySelect.options).some(option => option.value === String(product.category_id))) {
+      const option = document.createElement('option');
+      option.value = String(product.category_id);
+      option.textContent = `${product.category} (ngừng hoạt động)`;
+      option.dataset.currentCategory = 'true';
+      categorySelect.append(option);
+    }
+    categorySelect.value = String(product.category_id);
+    nameInput.focus();
+  }
+
+  function openDeleteProduct(product, opener) {
+    deletingProduct = product;
+    deleteOpener = opener;
+    document.getElementById('delete-product-name').textContent = `${product.name} · SKU: ${product.sku}`;
+    showMessage('', false, deleteMessage);
+    deleteDialog.showModal();
+  }
+
+  for (const button of [deleteCancel, deleteClose]) {
+    button.addEventListener('click', () => { if (!deleting) deleteDialog.close(); });
+  }
+  deleteDialog.addEventListener('cancel', event => { if (deleting) event.preventDefault(); });
+  deleteDialog.addEventListener('close', () => {
+    deletingProduct = null;
+    if (deleteOpener?.isConnected) deleteOpener.focus();
+    else search.focus();
+  });
+  deleteConfirm.addEventListener('click', async () => {
+    if (deleting || !deletingProduct) return;
+    const product = deletingProduct;
+    deleting = true;
+    deleteConfirm.disabled = deleteCancel.disabled = deleteClose.disabled = true;
+    deleteConfirm.textContent = 'Đang xóa…';
+    showMessage('Đang xóa sản phẩm…', false, deleteMessage);
+    try {
+      await requestJson(`/api/products/${product.id}`, { method: 'DELETE' });
+      products = products.filter(item => item.id !== product.id);
+      render();
+      deleteDialog.close();
+      showMessage(`Đã xóa sản phẩm ${product.name} (${product.sku}).`);
+    } catch (error) {
+      showMessage(error instanceof TypeError
+        ? 'Mất kết nối khi xóa. Hãy tải lại danh sách để kiểm tra trước khi thử lại.'
+        : error.message, true, deleteMessage);
+    } finally {
+      deleting = false;
+      deleteConfirm.disabled = deleteCancel.disabled = deleteClose.disabled = false;
+      deleteConfirm.textContent = 'Xóa sản phẩm';
+    }
+  });
+
   add.addEventListener('click', () => openProductForm());
   scanButton.addEventListener('click', () => {
-    if (saving || !dialog.open) return;
+    if (saving || editingProduct || !dialog.open) return;
     scanOpener = scanButton;
     scanDialog.showModal();
     startProductScan();
@@ -405,33 +512,42 @@ document.addEventListener('DOMContentLoaded', () => {
   for (const button of [close, cancel]) {
     button.addEventListener('click', () => { if (!saving) dialog.close(); });
   }
-  dialog.addEventListener('close', () => add.focus());
+  dialog.addEventListener('close', () => {
+    editingProduct = null;
+    if (formOpener?.isConnected) formOpener.focus();
+    else search.focus();
+  });
   dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
   form.addEventListener('submit', async event => {
     event.preventDefault();
     if (saving || !form.reportValidity()) return;
+    const existingProduct = editingProduct;
     const payload = {
-      name: document.getElementById('prod-name').value.trim(),
+      name: nameInput.value.trim(),
       category_id: Number(categorySelect.value),
-      quantity: Number(document.getElementById('prod-quantity').value)
+      quantity: Number(quantityInput.value)
     };
-    if (scannedCodeInput.value) payload.scanned_code = scannedCodeInput.value;
+    if (!existingProduct && scannedCodeInput.value) payload.scanned_code = scannedCodeInput.value;
     saving = true;
     fields.disabled = submit.disabled = cancel.disabled = close.disabled = true;
     submit.textContent = 'Đang lưu…';
     showMessage('Đang lưu sản phẩm…', false, formMessage);
     try {
-      const product = await requestJson('/api/products', {
-        method: 'POST',
+      const product = await requestJson(existingProduct ? `/api/products/${existingProduct.id}` : '/api/products', {
+        method: existingProduct ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      products.unshift(product);
-      search.value = '';
-      page = 1;
+      if (existingProduct) {
+        products = products.map(item => item.id === product.id ? product : item);
+      } else {
+        products.unshift(product);
+        search.value = '';
+        page = 1;
+      }
       render();
       dialog.close();
-
+      showMessage(`Đã ${existingProduct ? 'cập nhật' : 'thêm'} sản phẩm ${product.name} (${product.sku}).`);
     } catch (error) {
       showMessage(error instanceof TypeError
         ? 'Mất kết nối khi lưu. Hãy tải lại danh sách để kiểm tra sản phẩm trước khi thử lại.'
@@ -439,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       saving = false;
       fields.disabled = submit.disabled = cancel.disabled = close.disabled = false;
-      submit.textContent = 'Lưu sản phẩm';
+      submit.textContent = existingProduct ? 'Lưu thay đổi' : 'Lưu sản phẩm';
     }
   });
 

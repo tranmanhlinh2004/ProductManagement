@@ -19,7 +19,7 @@
       <div class="page-header">
         <div>
           <h1>Sản phẩm</h1>
-          <p class="intro">Theo dõi thông tin sản phẩm, số lượng trong kho và serial.</p>
+          <p class="intro">Thêm, sửa, xóa sản phẩm và theo dõi số lượng trong kho.</p>
         </div>
         <button id="btn-add-product" type="button" aria-haspopup="dialog" aria-controls="product-dialog" disabled>Thêm sản phẩm mới</button>
       </div>
@@ -57,6 +57,7 @@
     <p id="product-form-hint" class="hint">SKU được cấp tự động. Serial lấy từ dãy số mã vạch vừa quét; nếu thêm thủ công, hệ thống tự tạo serial 8 chữ số.</p>
     <form id="product-form">
       <fieldset id="product-fields" class="form-grid">
+        <label>SKU <input id="prod-sku" readonly placeholder="Tự động tạo khi lưu"></label>
         <label>Tên sản phẩm <input id="prod-name" required maxlength="200" autofocus></label>
         <label>Danh mục <select id="prod-category" required><option value="">Chọn danh mục</option></select></label>
         <label>Số lượng trong kho <input id="prod-quantity" type="number" min="0" max="2147483647" step="1" required value="0"></label>
@@ -75,6 +76,19 @@
         <button id="btn-submit-product" type="submit">Lưu sản phẩm</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="delete-product-dialog" class="product-dialog" aria-labelledby="delete-product-title" aria-describedby="delete-product-hint">
+    <div class="dialog-header">
+      <h2 id="delete-product-title">Xóa sản phẩm</h2>
+      <button id="btn-close-delete-product" type="button" class="secondary" aria-label="Đóng xác nhận xóa">×</button>
+    </div>
+    <p id="delete-product-name" class="code-product-name"></p>
+    <p id="delete-product-hint" class="hint">Sản phẩm sẽ không còn hiển thị trong danh sách và kết quả tra cứu. Thông tin sản phẩm và tồn kho vẫn được lưu lại.</p>
+    <p id="delete-product-message" class="message" role="status" aria-live="polite"></p>
+    <div class="actions dialog-actions">
+      <button id="btn-cancel-delete-product" type="button" class="secondary" autofocus>Hủy</button>
+      <button id="btn-confirm-delete-product" type="button" class="danger">Xóa sản phẩm</button>
+    </div>
   </dialog>
   <dialog id="product-scan-dialog" class="product-dialog product-scan-dialog" aria-labelledby="product-scan-title">
     <div class="dialog-header">
